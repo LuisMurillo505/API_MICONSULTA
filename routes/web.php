@@ -13,5 +13,5 @@ Route::get('/usuarios', [AuthController::class, 'index']);
 
 Route::get('/puede-subir-archivos/{clinica_id}/{paciente_id}', [AuthController::class, 'puedeSubirArchivosPacientes']);
 
-Route::get('/conteo-datos', [AuthController::class, 'conteoDatos']);
+Route::middleware('api.key')->get('/conteo-datos', [AuthController::class, 'conteoDatos']);
 

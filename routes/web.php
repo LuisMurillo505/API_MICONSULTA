@@ -12,3 +12,6 @@ Route::post('Login',[AuthController::class,'Login']);
 Route::get('/usuarios', [AuthController::class, 'index']);
 
 Route::get('/puede-subir-archivos/{clinica_id}/{paciente_id}', [AuthController::class, 'puedeSubirArchivosPacientes']);
+
+Route::get('/conteo-datos', [AuthController::class, 'conteoDatos']);
+

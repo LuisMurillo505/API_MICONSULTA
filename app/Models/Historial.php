@@ -4,9 +4,9 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class Movimientos extends Model
+class Historial extends Model
 {
-    protected $table='MOVIMIENTOS';
+    protected $table='historial';
 
     protected $fillable=[
         'descripcion'

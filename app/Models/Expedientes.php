@@ -7,18 +7,20 @@ use Illuminate\Database\Eloquent\Model;
 class Expedientes extends Model
 {
      // Nombre de la tabla
-     protected $table = 'EXPEDIENTE';
+     protected $table = 'expediente';
  
-     // Para los campos que serán asignados masivamente
      protected $fillable = [
          'paciente_id',
          'personal_id',
          'cita_id',
-         'observacion',
+         'motivo_consulta',
+         'objetivo',
+         'proceso',
+         'resultados',
          'fecha',
      ];
  
-     // Si deseas trabajar con fechas automáticamente
+
      protected $dates = ['created_at', 'updated_at', 'fecha'];
  
      // Relación con la tabla 'paciente' (paciente_id)

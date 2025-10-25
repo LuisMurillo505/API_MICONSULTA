@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Citas extends Model
 {
-    protected $table = 'CITA';
+    protected $table = 'cita';
 
      // Para los campos que serán asignados masivamente
      protected $fillable = [
@@ -14,8 +14,11 @@ class Citas extends Model
         'paciente_id',
         'servicio_id',
         'fecha_cita',
-        'hora',
-        'estado',
+        'hora_inicio',
+        'hora_fin',
+        'status_id',
+        'event_google_id',
+        'google_owner_id',
     ];
 
     // Si deseas trabajar con fechas automáticamente
@@ -38,4 +41,14 @@ class Citas extends Model
     {
         return $this->belongsTo(Servicio::class, 'servicio_id');
     }
+
+    public function usuario()
+    {
+        return $this->hasOneThrough(Usuario::class, Personal::class);
+    }
+
+    public function status(){
+        return $this->belongsTo(Status::class,'status_id');
+    }
+
 }

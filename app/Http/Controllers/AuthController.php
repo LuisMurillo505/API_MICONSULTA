@@ -9,14 +9,56 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Http\Request;
 use Validator;
 use Exception;
+use Illuminate\Support\Facades\Auth;
+use Carbon\Carbon;
+use App\Models\Citas;
+use App\Models\Pacientes;
+use App\Models\UsuarioAdmin;
+use App\Models\Servicio;
+use App\Models\Planes;
+use App\Models\StripeTarifas;
 
 class AuthController extends Controller
 {
 
-    public function index()
+    public function conteoDatos()
     {
-        $usuarios = Usuario::all();
-        return response()->json($usuarios);
+        try {
+
+            $conteoClinicas = Clinicas::with('suscripcion')->count();
+            $conteoCitasHoy = Citas::whereDate('fecha_cita', Carbon::today())->count();
+            $conteoPacientesHoy = Pacientes::whereDate('created_at', Carbon::today())->count();
+            $conteoUsuarios = Usuario::count();
+            $conteoUsuariosAdmin = UsuarioAdmin::count();
+            $conteoPacientes = Pacientes::count();
+            $conteoServicios = Servicio::count();
+            $conteoCitas = Citas::count();
+            $conteoPlanes = Planes::count();
+            $conteoTarifaStripe = StripeTarifas::count();
+
+            return response()->json([
+                'success' => true,
+                'data' => compact(
+                    'conteoClinicas',
+                    'conteoCitasHoy',
+                    'conteoPacientesHoy',
+                    'conteoUsuarios',
+                    'conteoUsuariosAdmin',
+                    'conteoPacientes',
+                    'conteoServicios',
+                    'conteoCitas',
+                    'conteoPlanes',
+                    'conteoTarifaStripe'
+                )
+            ]);
+
+        } catch (\Throwable $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener conteos',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
     }
     public function puedeSubirArchivosPacientes($clinica_id, $paciente_id)
     {

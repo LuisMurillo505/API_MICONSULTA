@@ -3,13 +3,11 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
-use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use App\Notifications\CustomVerifyEmail;
 
-class Usuario extends Authenticatable implements MustVerifyEmail
+class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable;
@@ -21,12 +19,12 @@ class Usuario extends Authenticatable implements MustVerifyEmail
      */
 
      protected $table = 'usuario';
+
+     protected $primaryKey='id';
     protected $fillable = [
-        'clinica_id',
         'correo',
         'password',
-        'status_id',
-        'last_connection'
+        'estado'
     ];
 
     /**
@@ -35,8 +33,11 @@ class Usuario extends Authenticatable implements MustVerifyEmail
      * @var list<string>
      */
     protected $hidden = [
+        'correo',
+        'clinica_id',
         'password',
-        'remember_token',
+        'status_id',
+        'last_connection'    
     ];
 
     /**
@@ -52,9 +53,8 @@ class Usuario extends Authenticatable implements MustVerifyEmail
         ];
     }
 
-    public function personal()
-    {
-        return $this->hasOne(Personal::class);
+    public function personal(){
+        return $this->hasOne(Personal::class,'usuario_id');
     }
 
     public function clinicas()
@@ -65,26 +65,4 @@ class Usuario extends Authenticatable implements MustVerifyEmail
     public function google(){
         return $this->hasOne(Google::class,'usuario_id');
     }
-
-    public function status(){
-        return $this->belongsTo(Status::class,'status_id');
-    }
-
-    public function getEmailAttribute()
-    {
-        return $this->correo;
-    }
-
-    public function setEmailAttribute($value)
-    {
-        $this->attributes['correo'] = $value;
-    }
-
-    public function sendEmailVerificationNotification()
-    {
-        $this->notify(new CustomVerifyEmail);
-    }
-    
-
-    
 }

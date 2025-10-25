@@ -6,13 +6,23 @@ use Illuminate\Database\Eloquent\Model;
 
 class Servicio extends Model
 {
-    protected $table='SERVICIO';
+    protected $table='servicio';
 
     protected $fillable=[
+        'clinica_id',
         'descripcion',
-        'estado'
+        'duracion',
+        'precio',
+        'status_id'
     ];
 
-    
     protected $dates = ['created_at', 'updated_at'];
+
+    public function clinica() {
+        return $this->belongsTo(Clinicas::class,'clinica_id');
+    }
+
+    public function status(){
+        return $this->belongsTo(Status::class,'status_id');
+    }
 }

@@ -7,14 +7,14 @@ use Illuminate\Database\Eloquent\Model;
 class Funciones_planes extends Model
 {
      protected $table='funciones_planes';
-     protected $fillable = ['plan_id', 'funcion_id', 'cantidad'];
+     protected $fillable = ['plan_id', 'funcion_id' ,'descripcion', 'cantidad'];
 
-     public function plan()
+    public function plan()
     {
         return $this->belongsTo(Planes::class, 'plan_id');
     }
 
-    public  function funcion(){
+    public function funcion(){
         return $this->belongsTo(Funciones::class,'funcion_id');
     }
 }

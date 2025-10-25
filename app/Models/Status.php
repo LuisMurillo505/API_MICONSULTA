@@ -25,7 +25,9 @@ class Status extends Model
     public function cita(){
         return $this->hasMany(Citas::class,'status_id');
     } 
-   
+    public function suscripcion(){
+        return $this->hasMany(Suscripcion::class,'status_id');
+    } 
     public function archivos_pacientes(){
         return $this->hasMany(ArchivosPaciente::class,'status_id');
     } 

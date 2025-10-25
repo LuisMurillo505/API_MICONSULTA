@@ -37,6 +37,13 @@ class Clinicas extends Model
     //     return $this->belongsTo(Direcciones::class,'direccion_id');
     // }
 
+     public function direccion()
+    {
+        return $this->morphOne(Direcciones::class, 'direccionable');
+    }
+    public function guia(){
+        return $this->hasMany(Guia_configuracion::class,'clinica_id');
+    }
 
      public function servicio() {
         return $this->hasOne(Servicio::class,'clinica_id');

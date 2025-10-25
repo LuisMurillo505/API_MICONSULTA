@@ -6,10 +6,11 @@ use Illuminate\Database\Eloquent\Model;
 
 class Permisos extends Model
 {
-    protected $table='PERMISOS';
+    protected $table='permisos';
 
     Protected $fillable=[
         'descripcion'
+        
     ];
 
     protected $dates = ['created_at', 'updated_at'];

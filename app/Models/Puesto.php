@@ -7,9 +7,10 @@ use Illuminate\Database\Eloquent\Model;
 class Puesto extends Model
 {
 
-    protected $table = 'PUESTO';
+    protected $table = 'puesto';
     protected $fillable=[
-        'descripcion'
+        'descripcion',
+        'estado'
     ];
 
     protected $dates = ['created_at', 'updated_at'];

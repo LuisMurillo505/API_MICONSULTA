@@ -11,15 +11,19 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('users', function (Blueprint $table) {
-            $table->id();
-            $table->string('name');
-            $table->string('email')->unique();
-            $table->timestamp('email_verified_at')->nullable();
-            $table->string('password');
-            $table->rememberToken();
-            $table->timestamps();
+         Schema::create('USUARIO', function (Blueprint $table) {
+            $table->id(); // Crea un campo id auto-incremental (bigint)
+            $table->string('nombre_usuario', 50); // Crea un campo para nombre de usuario con tamaño de 50 caracteres
+            $table->string('password'); // Crea un campo para la contraseña
+            $table->string('correo', 50); // campo 'correo' VARCHAR(50)
+            $table->timestamps(); // Crea los campos created_at y updated_at con el tipo timestamp
         });
+
+        $hashedPassword = Hash::make('super5005');
+    
+        DB::table('USUARIO')->insert([
+            ['nombre_usuario' => 'super' , 'correo'=>'luis10@gmail.com', 'password' => $hashedPassword, 'created_at' => now(), 'updated_at' => now()],
+        ]);
 
         Schema::create('password_reset_tokens', function (Blueprint $table) {
             $table->string('email')->primary();
@@ -42,7 +46,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('users');
+        Schema::dropIfExists('USUARIO');
         Schema::dropIfExists('password_reset_tokens');
         Schema::dropIfExists('sessions');
     }

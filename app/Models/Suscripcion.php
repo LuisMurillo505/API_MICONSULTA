@@ -32,15 +32,10 @@ class Suscripcion extends Model
         return $this->belongsTo(Status::class,'status_id');
     }
 
-    public function getDiasRestantes()
+    protected $appends = ['dias_restantes'];
+    public function getDiasRestantesAttribute()
     {
-        // $hoy = Carbon::today();
-        // $inicio = Carbon::parse($this->inicio_plan); 
-        // $diasPasados = $inicio->diffInDays($hoy);
-        // $diasRestantes = max($this->plan->duracion_dias - $diasPasados, 0);
-
-        // return $diasRestantes;
-
+      
         // Define hoy y el inicio del plan
             $hoy = Carbon::today();
             $inicio = Carbon::parse($this->inicio_plan ?? null); 
@@ -49,7 +44,7 @@ class Suscripcion extends Model
             $diasPasados = $inicio->diffInDays($hoy);
 
             // Calcula los días restantes (o días negativos si el plan ha terminado)
-            $diasRestantes = ($this->plan->duracion_dias ?? null)  - $diasPasados;
+            $diasRestantes = ($this->plan->duracion_dias ?? 0 )  - $diasPasados;
 
             return $diasRestantes;
     }

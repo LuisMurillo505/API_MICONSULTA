@@ -9,4 +9,8 @@ class Payment extends Model
      protected $table='payments';
      protected $fillable = ['clinica_id', 'plan_id' ,'tarifa_id','payment_id', 'invoiceNumber', 'discount','amount',
           'comision','net_amount','status','date'];
+
+     public function plan(){
+        return $this->belongsTo(Planes::class,'plan_id');
+     }    
 }

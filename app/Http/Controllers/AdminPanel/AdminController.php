@@ -1,7 +1,8 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\AdminPanel;
 
+use App\Http\Controllers\Controller;
 use App\Models\Usuario;
 use App\Models\Clinicas;
 use App\Models\Especialidad;

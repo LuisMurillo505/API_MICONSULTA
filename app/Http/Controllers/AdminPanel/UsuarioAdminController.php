@@ -1,7 +1,8 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\AdminPanel;
 
+use App\Http\Controllers\Controller;
 use App\Models\UsuarioAdmin;
 use Illuminate\Http\Request;
 use Exception;

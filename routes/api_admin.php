@@ -1,11 +1,10 @@
 <?php
 
-use App\Models\StripeTarifas;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\AdminController;
-use App\Http\Controllers\PlanController;
-use App\Http\Controllers\TarifaStripeContoller;
-use App\Http\Controllers\UsuarioAdminController;
+use App\Http\Controllers\AdminPanel\AdminController;
+use App\Http\Controllers\AdminPanel\PlanController;
+use App\Http\Controllers\AdminPanel\TarifaStripeContoller;
+use App\Http\Controllers\AdminPanel\UsuarioAdminController;
 
 //admin
 Route::middleware('api.key')->group(function () {

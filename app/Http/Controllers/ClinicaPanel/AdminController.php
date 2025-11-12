@@ -45,33 +45,52 @@ class AdminController extends Controller
         $this->planService = $planServices;
     }
 
+/**
+ * Obtiene estadísticas y límites de uso asociados a una clínica.
+ *
+ * Este método genera un conjunto de conteos relacionados con una clínica,
+ * incluyendo usuarios, servicios, pacientes y citas. Además, compara estos
+ * valores con los límites permitidos por el plan de suscripción de la clínica
+ * para determinar cuánto espacio queda disponible en cada categoría.
+ *
+ * @param  int  $usuario_id  ID del usuario autenticado.
+ * @return array  Retorna un arreglo con los conteos y límites calculados.
+ */
     public function conteoDatos($usuario_id)
     {
+        // Obtener los datos generales del usuario (como la clínica a la que pertenece)
         $datos=$this->usuarioService->DatosUsuario($usuario_id);
 
+        //Conteo de usuarios activos en la clínica
        $conteoUsuarios=Personal::whereHas('usuario',function($q) use($datos){
             $q->where('clinica_id',$datos['clinica_id'])
                 ->where('status_id',1);
         })->count();
 
+        //Conteo de servicios activos en la clínica
         $conteoServicios=Servicio::where('clinica_id',$datos['clinica_id'])
         ->where('status_id',1)->count();
 
-        //conteo de apartados
+        // Obtener todos los servicios de la clínica (para listados o cálculos adicionales)
         $servicios=Servicio::where('clinica_id',$datos['clinica_id'])->get(); 
 
+        //Conteo total de pacientes registrados en la clínica
         $conteoPacientes=pacientes::where('clinica_id',$datos['clinica_id'])->count();
 
+        //Conteo total de citas (todas las citas asociadas a personal de la clínica)
         $conteoCitas=citas::whereHas('personal.usuario',function($q) use($datos){
             $q->where('clinica_id',$datos['clinica_id']);
         })->count();
 
+        //Conteo de citas agendadas para el día de hoy
         $conteoCitasHoy=citas::whereHas('personal.usuario',function($q) use($datos){
             $q->where('clinica_id',$datos['clinica_id']);
         })->whereDate('fecha_cita', Carbon::today())->count();
 
+        //Conteo de pacientes registrados hoy
         $conteoPacientesHoy=pacientes::where('clinica_id',$datos['clinica_id'])->whereDate('created_at', Carbon::today())->count();
 
+        //Conteo de citas activas, finalizadas y canceladas
         $conteoActivas = citas::whereHas('personal.usuario', function($q) use($datos) {
             $q->where('clinica_id', $datos['clinica_id']);
         })->where('status_id', 1)->count();
@@ -84,85 +103,53 @@ class AdminController extends Controller
             $q->where('clinica_id', $datos['clinica_id']);
         })->where('status_id', 4)->count();
 
-        //usuarios permitidos
-        $usuariosPermitidos=Clinicas::with(['suscripcion.plan.funciones_planes' => function ($query) {
-            $query->where('funcion_id', 2);
-        }])->where('id',$datos['clinica_id'])
-        ->whereHas('suscripcion.plan.funciones_planes',function($q) {
-            $q->where('funcion_id',2);
-        })->first();
-        
+        /**
+         * Secciones para verificar los límites del plan de suscripción
+         * Cada función_id representa una característica del plan (usuarios, servicios, pacientes, citas)
+         */
 
-         if($usuariosPermitidos->suscripcion->plan->funciones_planes->cantidad > $conteoUsuarios){
-            $conteoUsuariosP= $usuariosPermitidos->suscripcion->plan->funciones_planes->cantidad - $conteoUsuarios;
+        // === USUARIOS PERMITIDOS ===
+        $conteoUsuariosP=$this->planService->usuariosPermitidos($datos['clinica_id'],$conteoUsuarios);
 
-        }else{
-            $conteoUsuariosP = null;
-        }
+        // === SERVICIOS PERMITIDOS ===
+        $conteoServiciosP=$this->planService->serviciosPermitidos($datos['clinica_id'],$conteoServicios);
 
-        //servicios permitidos
-         $serviciosPermitidos=Clinicas::with(['suscripcion.plan.funciones_planes' => function ($query) {
-            $query->where('funcion_id', 1);
-        }])->where('id',$datos['clinica_id'])
-        ->whereHas('suscripcion.plan.funciones_planes',function($q) {
-            $q->where('funcion_id',1);
-        })->first();
+        // === PACIENTES PERMITIDOS ===
+        $conteoPacientesP=$this->planService->pacientesPermitidos($datos['clinica_id'],$conteoPacientes);
 
+        // === CITAS PERMITIDAS ===
+        $conteoCitasP=$this->planService->citasPermitidos($datos['clinica_id'],$conteoCitas);
 
-        if($serviciosPermitidos->suscripcion->plan->funciones_planes->cantidad > $conteoServicios){
-            $conteoServiciosP= $serviciosPermitidos->suscripcion->plan->funciones_planes->cantidad - $conteoServicios;
-
-        }else{
-            $conteoServiciosP = null;
-        }
-
-        //pacientes permitidos
-         $pacientesPermitidos=Clinicas::with(['suscripcion.plan.funciones_planes' => function ($query) {
-            $query->where('funcion_id', 3);
-        }])->where('id',$datos['clinica_id'])
-        ->whereHas('suscripcion.plan.funciones_planes',function($q) {
-            $q->where('funcion_id',3);
-        })->first();
-
-        if($pacientesPermitidos->suscripcion->plan->funciones_planes->cantidad == null){
-            $conteoPacientesP = 'Ilimitado';
-        }elseif($pacientesPermitidos->suscripcion->plan->funciones_planes->cantidad > $conteoPacientes){
-            $conteoPacientesP= $pacientesPermitidos->suscripcion->plan->funciones_planes->cantidad - $conteoPacientes;
-        }else{
-            $conteoPacientesP = null;
-        }
-
-        //citas permitidos
-         $citasPermitidos=Clinicas::with(['suscripcion.plan.funciones_planes' => function ($query) {
-            $query->where('funcion_id', 4);
-        }])->where('id',$datos['clinica_id'])
-        ->whereHas('suscripcion.plan.funciones_planes',function($q) {
-            $q->where('funcion_id',4);
-        })->first();
-
-        if($citasPermitidos->suscripcion->plan->funciones_planes->cantidad == null){
-            $conteoCitasP = 'Ilimitado';
-        }elseif($citasPermitidos->suscripcion->plan->funciones_planes->cantidad > $conteoCitas){
-            $conteoCitasP= $citasPermitidos->suscripcion->plan->funciones_planes->cantidad - $conteoCitas;
-        }else{
-            $conteoCitasP = null;
-        }
-
+        // Se devuelve un arreglo con todos los conteos y límites calculados
         return compact('conteoUsuarios', 'conteoServicios', 'servicios','conteoPacientes', 'conteoCitas', 'conteoCitasHoy', 'conteoPacientesHoy', 'conteoActivas', 'conteoFinalizadas', 'conteoCanceladas', 'conteoUsuariosP', 'conteoCitasP', 'conteoServiciosP', 'conteoPacientesP');
     }
 
-    /**
-     * Muestra la vista principal del panel de administración con conteos básicos.
-     */
+/**
+ * Muestra información general del usuario y su clínica.
+ *
+ * Este método obtiene y combina tres fuentes principales de datos:
+ *  - Información general del usuario (DatosUsuario)
+ *  - Información de guía o adicional (obtenerDatosGuia)
+ *  - Estadísticas y conteos de la clínica (conteoDatos)
+ *
+ * Retorna una respuesta JSON que contiene todos estos datos integrados.
+ *
+ * @param  int  $usuario_id  ID del usuario autenticado.
+ * @return \Illuminate\Http\JsonResponse  Respuesta JSON con los datos o un error.
+ */
     public function index($usuario_id)
     {   
         try{
+            //Obtener los datos generales del usuario,
             $datos=$this->usuarioService->DatosUsuario($usuario_id);
 
+            //Obtener datos adicionales o guía (por ejemplo, información extendida del perfil).
             $datosGuia = $this->usuarioService->obtenerDatosGuia($usuario_id);
 
+            //Obtener los conteos y estadísticas relacionadas con la clínica
             $conteoDatos = $this->conteoDatos($usuario_id);
 
+            // Combinar toda la información obtenida en un solo arreglo.
             return response()->json([
                 'success' => true,
                 'data'=>array_merge(
@@ -181,106 +168,174 @@ class AdminController extends Controller
        
     }
 
-     /**
-     * Muestra la vista del perfil del la clinica
-     */
-
-    //   public function index_perfil(){
+/**
+ * Obtiene los datos necesarios para mostrar el perfil del usuario administrador.
+ *
+ * Este método recupera información relevante para la vista de perfil de un usuario,
+ * incluyendo:
+ *  - Lista completa de ciudades disponibles.
+ *  - Datos de conexión con Google (si existen).
+ *  - Permiso para usar Google Calendar según el plan de su clínica.
+ *
+ * Retorna una respuesta JSON con todos los datos combinados o un mensaje de error si algo falla.
+ *
+ * @param  int  $usuario_id  ID del usuario.
+ * @return \Illuminate\Http\JsonResponse  Respuesta JSON con los datos del perfil o mensaje de error.
+ */
+    public function index_perfil($usuario_id){
    
-    //     $datos=$this->usuarioService->DatosUsuario();
-    //     $usuario=Usuario::find($datos['usuario_id']);
-    //     $ciudades=Ciudades::all();
-    //     $google=$usuario->google ?? null;
-    //     $googleCalendar=$this->planService->puedeUsarGoogleCalendar($datos['clinica_id']);
+        try{    
+            //Buscar al usuario en la base de datos según su ID.
+            $usuario=Usuario::find($usuario_id);
 
-    //     $datosGuia = $this->obtenerDatosGuia();
+            //Obtener todas las ciudades disponibles en el sistema,
+            $ciudades=Ciudades::all();
 
-    //     return view('admin.perfiladmin', array_merge(compact('ciudades','google','googleCalendar'),$datos, $datosGuia));
-    // }
+            //Obtener la configuración de Google asociada al usuario,
+            $google=$usuario->google ?? null;
+
+            // Verificar si la clínica asociada al usuario 
+            // tiene permiso para usar la integración de Google Calendar.
+            $googleCalendar=$this->planService->puedeUsarGoogleCalendar($usuario->clinicas->id);
+
+            //Retornar los datos en formato JSON con estado de éxito.
+            return response()->json([
+                'success'=>true,
+                'data'=> compact(
+                    'ciudades',
+                    'google',
+                    'googleCalendar'
+                )
+            ]);
+        }catch(\Throwable $e){
+            // Capturar cualquier error y retornar respuesta con detalles del error
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener datos',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+        
+
+    }
+
+/**
+ * Obtiene la lista de usuarios (personal) asociados a la clínica del usuario autenticado.
+ *
+ * Este método devuelve un conjunto de datos con:
+ *  - Lista completa del personal de la clínica.
+ *  - Lista filtrada de usuarios según los parámetros enviados en la request (por ID o estado).
+ *
+ * Si se envían filtros opcionales:
+ *  - `usuarios`: filtra por ID específico del personal.
+ *  - `estado`: filtra por el estado del usuario (activo/inactivo, etc.).
+ *
+ * @param  \Illuminate\Http\Request  $request  Datos de la solicitud HTTP.
+ * @param  int  $usuario_id  ID del usuario autenticado o que realiza la solicitud.
+ * @return \Illuminate\Http\JsonResponse  Respuesta JSON con la lista de usuarios o mensaje de error.
+ */
+    public function index_usuarios(Request $request,$usuario_id)
+    {   
+        try{
+            // Se obtiene el usuario principal que hace la solicitud,
+            //Para identificar a qué clínica pertenece.
+            $usuario=Usuario::find($usuario_id);
+
+            // Se obtiene una lista completa de usuarios (personal) asociados
+            //a la misma clínica del usuario.
+            $Lista_usuarios=Personal::whereHas('usuario',function($q) use($usuario){
+                $q->where('clinica_id',$usuario->clinica_id);
+            })->get();
+
+             /**
+             * Se construye una consulta base para obtener el personal de la clínica,
+             * incluyendo sus relaciones: especialidad, usuario y estado del usuario.
+             */
+            $query=Personal::query()->with(['especialidad', 'usuario','usuario.status'])
+                ->whereHas('usuario', function($q) use($usuario){
+                $q->where('clinica_id',$usuario->clinica_id);
+            });
+
+            /**
+             * Si se proporciona un ID específico de usuario en la request,
+             * se filtra la lista para mostrar solo ese usuario.
+             */
+            if($request->filled('usuarios')){
+                $query->where('id',$request->usuarios);
+            }
+
+             /**
+             * Si se proporciona un estado (activo/inactivo, etc.),
+             * se filtran los usuarios cuyo status_id coincida.
+             */
+            if($request->filled('estado')){
+                $query->whereHas('usuario', function($q) use($request) {
+                    $q->where('status_id', $request->estado);
+                });
+            }
+
+            //Se ejecuta la consulta y se obtiene la lista final de usuarios.
+            $usuariosC = $query->get();  
+
+            //Retornar los datos en formato JSON con estado de éxito.
+            return response()->json([
+                'success'=>true,
+                'data'=>compact(
+                    'usuariosC',
+                    'Lista_usuarios'
+                )
+            ]);
+
+        }catch(\Throwable $e){
+            // Capturar cualquier error y retornar respuesta con detalles del error
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener datos',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
 
     // /**
     //  * Muestra el formulario para registrar un nuevo usuario.
     //  */
-    // public function index_registro()  {
+    public function index_crearUsuario($usuario_id)  {
 
-    //     $datos=$this->usuarioService->DatosUsuario();
-    //     $datosGuia = $this->obtenerDatosGuia();
+        try{
+            // Se obtiene el usuario principal que hace la solicitud,
+            //Para identificar a qué clínica pertenece.
+            $usuario=Usuario::find($usuario_id);
 
-    //     session(['previous_url' => url()->previous()]);
+            $especialidad=Especialidad::where('status_id',1)
+                ->where('clinica_id',$usuario->clinica_id)->get();
 
-    //     $especialidad=Especialidad::where('status_id',1)
-    //         ->where('clinica_id',$datos['clinica_id'])->get();
-    //     $puesto=Puesto::all();
+            $puesto=Puesto::all();
 
-    //     return view('admin.createusuarios',array_merge(compact('especialidad','puesto'),$datos, $datosGuia));
-    // }
+            return response()->json([
+                'success'=>true,
+                'data'=>compact(
+                    'especialidad',
+                    'puesto'
+                )
+            ]);
 
-    // /**
-    //  * Muestra la lista de usuarios del personal médico/recepcion.
-    //  */
-    // public function index_usuarios()
-    // {   
-    //     $datos=$this->usuarioService->DatosUsuario();
+        }catch(\Throwable $e){
+            // Capturar cualquier error y retornar respuesta con detalles del error
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener datos',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+       
+    }
 
-    //     $datosGuia = $this->obtenerDatosGuia();
-
-    //     $conteoDatos = $this->conteoDatos();
-
-    //     $usuariosC=Personal::with(['especialidad', 'usuario'])
-    //         ->whereHas('usuario', function($q) use($datos){
-    //         $q->where('clinica_id',$datos['clinica_id']);
-    //     })->get();
-
-    //     $Lista_usuarios=Personal::whereHas('usuario',function($q) use($datos){
-    //         $q->where('clinica_id',$datos['clinica_id']);
-    //     })->get();
-
-    //     return view('admin.usuarios', array_merge(compact('usuariosC','Lista_usuarios'),$datos, $datosGuia, $conteoDatos));
-    // }
-
-    // /**
-    //  * Permite buscar usuarios filtrando por estado o id.
-    //  */
-    // public function buscarUsuarios(Request $request){
-        
-    //     $datos=$this->usuarioService->DatosUsuario();
-
-    //     $datosGuia = $this->obtenerDatosGuia();
-
-    //     $conteoDatos = $this->conteoDatos();
-
-    //     $Lista_usuarios=Personal::whereHas('usuario',function($q) use($datos){
-    //         $q->where('clinica_id',$datos['clinica_id']);
-    //     })->get();
-
-
-    //     $query=Personal::query()->with(['usuario'])->whereHas('usuario',function($q) use($datos){
-    //             $q->where('clinica_id',$datos['clinica_id']);
-    //         });
-
-    //     if($request->filled('usuarios')){
-    //         $query->where('id',$request->usuarios);
-    //     }
-
-    //     if($request->filled('estado')){
-    //         $query->whereHas('usuario', function($q) use($request) {
-    //             $q->where('status_id', $request->estado);
-    //         });
-    //     }
-
-    //     $usuariosC = $query->get();  
-
-    //     return view('admin.usuarios', array_merge(compact('usuariosC','Lista_usuarios','usuariosC'),$datos, $datosGuia, $conteoDatos));
-    // }
 
     //  /**
     //  * Muestra el detalle de un usuario en particular.
     //  */
-    // public function index_editusuarios($id){
+    // public function index_detalleUsuario($id){
 
-    //     $datos=$this->usuarioService->DatosUsuario();
-
-    //     $datosGuia = $this->obtenerDatosGuia();
 
     //     $usuarioP=Usuario::find($id);
        

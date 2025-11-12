@@ -251,7 +251,8 @@ class AdminController extends Controller
             $usuarioP=Usuario::with('status','clinicas')->find($usuario_id);
        
             // Obtener todas las especialidades disponibles en la clínica del usuario
-            $especialidad=Especialidad::where('clinica_id',$usuarioP->clinica_id)->get();
+            $especialidad=Especialidad::where('clinica_id',$usuarioP->clinica_id)
+            ->where('status_id',1)->get();
 
             // Obtener todos los puestos disponibles
             $puesto=Puesto::all();

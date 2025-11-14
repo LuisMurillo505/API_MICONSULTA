@@ -267,12 +267,16 @@ class AdminController extends Controller
             // Obtener disponibilidad laboral del usuario por día
             $disponibilidad=Disponibilidad::where('personal_id',$personal->id)->get()->keyBy('dia');
 
+            //verifica si el usuario medico puede y estar conectado con googleCalendar
+            $googleCalendar=$this->planService->puedeUsarGoogleCalendar($usuarioP->clinica_id);
+            $google=$personal->usuario->google;
+
             // Retornar respuesta exitosa con todos los datos recopilados
             return response()->json([
                 'success'=>true,
                 'data'=>compact('usuarioP','especialidad',
                 'puesto','personal','especialidad_user','puesto_user',
-                'disponibilidad')]);
+                'disponibilidad','googleCalendar','google')]);
 
         }catch(\Throwable $e){
             // Manejo de errores con detalles de la excepción
@@ -512,23 +516,24 @@ class AdminController extends Controller
  * @throws \Throwable  Si ocurre algún error durante la obtención de los datos.
  *
  */
-     public function index_detalleCita($cita_id,$paciente_id){
+     public function index_detalleCita($cita_id){
     
         try{
-            // Obtiene todas las observaciones médicas registradas para el paciente.
-            $observaciones=Observaciones::where('paciente_id',$paciente_id)->get();
-
-            //Obtiene la información del familiar asociado al paciente.
-            $familiar_paciente=Familiar_paciente::where('paciente_id',$paciente_id)->first();
-        
-             //Recupera el expediente clínico correspondiente a la cita médica.
-            $expediente=Expedientes::where('cita_id',$cita_id)->get();
-
             //Obtiene la información completa de la cita, incluyendo sus relaciones:
             //servicios,paciente,personal,status,clinicas
             $cita=Citas::with(['servicio','personal','paciente','paciente.clinicas','status'])
                 ->where('id','=',$cita_id)->first();
             
+            // Obtiene todas las observaciones médicas registradas para el paciente.
+            $observaciones=Observaciones::where('paciente_id',$cita->paciente_id)->get();
+
+            //Obtiene la información del familiar asociado al paciente.
+            $familiar_paciente=Familiar_paciente::where('paciente_id',$cita->paciente_id)->first();
+        
+             //Recupera el expediente clínico correspondiente a la cita médica.
+            $expediente=Expedientes::where('cita_id',$cita_id)->get();
+
+          
 
             //Retorna la respuesta en formato JSON con los datos recopilados.
             return response()->json([

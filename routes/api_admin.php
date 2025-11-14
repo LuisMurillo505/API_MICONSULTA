@@ -14,7 +14,7 @@ Route::middleware('api.key')->group(function () {
     Route::get('/detalle-usuario/{usuario_id}', [AdminController::class, 'index_detalleusuario']);
     Route::get('/detalle-paciente/{paciente_id}', [AdminController::class, 'index_detallepaciente']);
     Route::get('/expediente/{paciente_id}', [AdminController::class, 'index_expediente']);
-    Route::get('/detalle-cita/{cita_id}/{paciente_id}', [AdminController::class, 'index_detalleCita']);
+    Route::get('/detalle-cita/{cita_id}', [AdminController::class, 'index_detalleCita']);
     Route::get('/calendario', [AdminController::class, 'index_calendario']);
     Route::get('/usuariosAdmin', [AdminController::class, 'index_usuariosAdmin']);
     Route::get('/planes', [AdminController::class, 'index_planes']);

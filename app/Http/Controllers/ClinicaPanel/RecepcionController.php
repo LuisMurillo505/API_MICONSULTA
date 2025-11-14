@@ -93,7 +93,7 @@ class RecepcionController extends Controller
         try{
         $datos=$this->usuarioService->DatosUsuario($usuario_id);
 
-        $datosGuia = $this->obtenerDatosGuia($usuario_id);
+        $datosGuia = $this->usuarioService->obtenerDatosGuia($usuario_id);
 
         
         return response()->json([

@@ -16,11 +16,6 @@ Route::middleware('api.key')->get('/perfilAdmin/{usuario_id}', [AdminController:
 Route::middleware('api.key')->get('/usuarios/{usuario_id}', [AdminController::class, 'index_usuarios']);
 Route::middleware('api.key')->get('/crear-usuarios/{usuario_id}', [AdminController::class, 'index_crearUsuario']);
 
-//medico
-Route::middleware('api.key')->get('/medico/{usuario_id}', [MedicoController::class, 'index']);
-
-//recepcion
-Route::middleware('api.key')->get('/recepcion/{usuario_id}', [RecepcionController::class, 'index']);
 
 
 

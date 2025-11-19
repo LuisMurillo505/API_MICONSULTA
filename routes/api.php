@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ClinicaPanel\AdminController;
+use App\Http\Controllers\ClinicaPanel\UsuariosController;
 use App\Http\Controllers\ClinicaPanel\MedicoController;
 use App\Http\Controllers\ClinicaPanel\RecepcionController;
 use App\Http\Controllers\ClinicaPanel\LoginController;
@@ -15,6 +16,8 @@ Route::middleware('api.key')->get('/perfilAdmin/{usuario_id}', [AdminController:
 //usuarios
 Route::middleware('api.key')->get('/usuarios/{usuario_id}', [AdminController::class, 'index_usuarios']);
 Route::middleware('api.key')->get('/crear-usuarios/{usuario_id}', [AdminController::class, 'index_crearUsuario']);
+Route::middleware('api.key')->put('/actualizar-usuarios/{usuario_id}/{foto}', [UsuariosController::class, 'update']);
+
 
 
 

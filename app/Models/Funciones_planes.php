@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class Funciones_planes extends Model
 {
      protected $table='funciones_planes';
-     protected $fillable = ['plan_id', 'funcion_id' ,'descripcion', 'cantidad'];
+     protected $fillable = ['plan_id', 'funcion_id', 'cantidad'];
 
     public function plan()
     {

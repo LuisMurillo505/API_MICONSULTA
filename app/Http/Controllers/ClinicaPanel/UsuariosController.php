@@ -124,7 +124,11 @@ class UsuariosController extends Controller
                     'error' => 'usuario no existe',
                 ], 500);               
              }
-
+             
+             if ($foto=='null'){
+                $foto=null;
+             }
+        
               // Actualizar los datos del usuario
                 $personal->update([
                     'especialidad_id' => $request->especialidad,

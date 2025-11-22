@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\ClinicaPanel;
 
 use App\Http\Controllers\Controller;
+use Exception;
 use Illuminate\Http\Request;
 use App\Services\UsuarioService;
 use App\Models\Pacientes;
@@ -31,78 +32,92 @@ class RecepcionController extends Controller
     public function __construct(UsuarioService $usuarioServices){
         $this->usuarioService=$usuarioServices;    
     }  
-    /**
-     * Obtiene datos del usuario autenticado y su clínica.
-     */
-    public function obtenerDatosGuia($usuario_id)
-    {
 
-       // Total de pasos en la guía (todos los pasos activos no existen, se asume que todos están activos)
-        $total_pasos = PasoGuia::count();
-
-        $total_pasosF = 0;
-        if ($usuario_id) {
-            $total_pasosF = ProgresoUsuarioGuia::where('usuario_id', $usuario_id)
-                ->where('esta_completado', true)
-                ->count();
-        }
-        $pasosT = PasoGuia::all()->count();
-        $clave_paso = PasoGuia::where('id', 1)->value('clave_paso');
-        $paso_completo = [];
-        $paso_completo = ProgresoUsuarioGuia::where('usuario_id', $usuario_id)->where('esta_completado', true)->pluck('clave_paso');
-        // $PasoGuia2 = PasoGuia::with(['progreso' => function ($q) use ($usuario_id) {
-        //     $q->where('usuario_id', $usuario_id);
-        // }])->get();
-        $PasoGuia2 = PasoGuia::whereHas('progreso', function ($q) use ($usuario_id) {
-            $q->where('usuario_id', $usuario_id);
-        })->with(['progreso' => function ($q) use ($usuario_id) {
-            $q->where('usuario_id', $usuario_id);
-        }])->get();
-
-        return compact('total_pasos', 'total_pasosF', 'pasosT', 'clave_paso', 'paso_completo', 'PasoGuia2');
-    }
-
+/**
+ * Calcula diversos conteos de citas asociadas a la clínica del usuario.
+ *
+ * Esta función obtiene los datos del usuario (incluyendo su clinica_id)
+ * y realiza diferentes conteos de citas según su estado:
+ *  - Total de citas
+ *  - Citas activas (status_id = 1)
+ *  - Citas finalizadas (status_id = 3)
+ *  - Citas canceladas (status_id = 4)
+ *
+ * Todos los conteos se basan únicamente en citas pertenecientes a la misma clínica
+ * del usuario.
+ *
+ * @param  int $usuario_id  ID del usuario autenticado.
+ * @return array            Arreglo con conteos específicos de citas.
+ */
     public function conteoDatos($usuario_id){
         
-        $datos=$this->usuarioService->datosUsuario($usuario_id);
+        try{
+            // Obtener información del usuario: contiene clinica_id, personal_id, etc.
+            $datos=$this->usuarioService->datosUsuario($usuario_id);
 
-        $conteoCitas=citas::whereHas('personal.usuario',function($q) use($datos){
-            $q->where('clinica_id',$datos['clinica_id']);
-        })->count();
+            //Conteo total de citas asociadas a la clínica del usuario.
+            $conteoCitas=citas::whereHas('personal.usuario',function($q) use($datos){
+                $q->where('clinica_id',$datos['clinica_id']);
+            })->count();
 
-        $conteoActivas = citas::whereHas('personal.usuario', function($q) use($datos) {
-            $q->where('clinica_id', $datos['clinica_id']);
-        })->where('status_id', 1)->count();
+            //Citas activas (status_id = 1)
+            $conteoActivas = citas::whereHas('personal.usuario', function($q) use($datos) {
+                $q->where('clinica_id', $datos['clinica_id']);
+            })->where('status_id', 1)->count();
 
-        $conteoFinalizadas = citas::whereHas('personal.usuario', function($q) use($datos) {
-            $q->where('clinica_id', $datos['clinica_id']);
-        })->where('status_id', 3)->count();
+            //Citas finalizadas (status_id = 3)
+            $conteoFinalizadas = citas::whereHas('personal.usuario', function($q) use($datos) {
+                $q->where('clinica_id', $datos['clinica_id']);
+            })->where('status_id', 3)->count();
 
-        $conteoCanceladas = citas::whereHas('personal.usuario', function($q) use($datos) {
-            $q->where('clinica_id', $datos['clinica_id']);
-        })->where('status_id', 4)->count();
+            //Citas canceladas (status_id = 4)
+            $conteoCanceladas = citas::whereHas('personal.usuario', function($q) use($datos) {
+                $q->where('clinica_id', $datos['clinica_id']);
+            })->where('status_id', 4)->count();
 
-        return compact('conteoCitas', 'conteoActivas', 'conteoFinalizadas', 'conteoCanceladas');
+            // Retornar todos los conteos como arreglo asociativo
+            return compact('conteoCitas', 'conteoActivas', 'conteoFinalizadas', 'conteoCanceladas');
+        }catch(Exception $e){
+            throw $e;
+        }
+        
     }
 
-    /**
-     * Muestra la vista principal de recepción con pacientes, servicios y personal.
-     */
+/**
+ * Obtiene toda la información general para el dashboard del usuario recepcion:
+ *  - Datos del usuario y su clínica.
+ *  - Conteo de citas (activas, finalizadas, canceladas).
+ *  - Progreso dentro de la guía interactiva.
+ *
+ * Combina información de múltiples servicios en una sola respuesta para ser consumida
+ * desde el proyecto principal mediante API.
+ *
+ * @param  int  $usuario_id   ID del usuario autenticado.
+ * @return \Illuminate\Http\JsonResponse
+ *
+ * @throws \Throwable
+ */
     public function index($usuario_id){
 
         try{
-        $datos=$this->usuarioService->DatosUsuario($usuario_id);
+            //Obtener la información detallada del usuario:
+            $datos=$this->usuarioService->DatosUsuario($usuario_id);
 
-        $datosGuia = $this->usuarioService->obtenerDatosGuia($usuario_id);
+            // Obtener la información relacionada a la guía de usuario:
+            $datosGuia = $this->usuarioService->obtenerDatosGuia($usuario_id);
 
-        
-        return response()->json([
-            'succes'=>true,
-            'data'=>array_merge(
-                $datos,
-                $datosGuia
-            )
-        ]);
+            //Obtener conteos relacionados a las citas del usuario:
+            $conteoDatos=$this->conteoDatos($usuario_id);
+
+            //Retorna la respuesta en formato JSON con los datos recopilados.
+            return response()->json([
+                'succes'=>true,
+                'data'=>array_merge(
+                    $datos,
+                    $datosGuia,
+                    $conteoDatos
+                )
+            ]);
         }catch(\Throwable $e){
             // Capturar cualquier error y retornar respuesta con detalles del error
             return response()->json([
@@ -114,184 +129,211 @@ class RecepcionController extends Controller
         
     }
 
-    /**
-     * Muestra formulario para crear paciente desde recepción.
-     */
-    // public function index_createpaciente(){
+/**
+ * Obtiene los datos necesarios (pacientes activos, personal médico y servicios)
+ * para la vista de creación de una nueva cita, filtrados por la clínica especificada.
+ *
+ * @param int $clinica_id El ID de la clínica para filtrar los datos.
+ * @return \Illuminate\Http\JsonResponse Retorna una respuesta JSON con 'success' y los datos
+ * (pacientes, personal, servicios) en caso de éxito,
+ * o un mensaje de error con código 500 en caso de fallo.
+ */
+    public function index_createcita($clinica_id){
 
-    //     $datos=$this->usuarioService->DatosUsuario();
-    //     $datosGuia = $this->obtenerDatosGuia();
+        try{
+            //Obtener todos los pacientes activos (status_id = 1) de la clínica específica.
+            $pacientes=Pacientes::where('status_id','=',1)
+            ->where('clinica_id',$clinica_id)->get();
+            
+            // Obtener el personal que cumple con:
+            //    a) Está asignado a un usuario con clinica_id y status_id = 1.
+            //    b) Tiene un puesto_id = 2 (medico).
+            $personal=Personal::whereHas('usuario',function($q) use($clinica_id){
+                $q->where('clinica_id',$clinica_id)
+                    ->where('status_id',1);
+            })->where('puesto_id',2)->get();
 
-    //     $estado=Status::limit('2')->get();
-    //     $ciudades=Ciudades::all();
-        
-    //     return view('recepcion.createpacientesRec',compact('estado','ciudades'),$datos, $datosGuia);
-    // }
+            //Obtener todos los servicios ofrecidos por la clínica específica.
+            $servicios=Servicio::where('clinica_id',$clinica_id)->get();
 
-    // /**
-    //  * Muestra el perfil del usuario de recepción.
-    //  */
-    // public function index_perfil(){
+            //Retorna la respuesta en formato JSON con los datos recopilados.
+            return response()->json([
+                'success'=>true,
+                'data'=>compact(
+                    'pacientes',
+                    'personal',
+                    'servicios'
+                )
+            ]);
 
-    //     $datos=$this->usuarioService->DatosUsuario();
-    //     $datosGuia = $this->obtenerDatosGuia();
-
-    //     $especialidad=Especialidad::where('clinica_id',$datos['clinica_id'])->get();
-    //     $puesto=Puesto::all();
-    //     $personal=Personal::where('usuario_id',$datos['usuario_id'])->first();
-    //     $especialidad_user=Especialidad::where('id',$personal->especialidad_id)->first();
-    //     $puesto_user=Puesto::where('id',$personal->puesto_id)->first();
-
-    //     return view('recepcion.perfilrecepcion', array_merge(compact('especialidad','puesto','personal','especialidad_user','puesto_user'),$datos, $datosGuia));
-    // }
-
+        }catch(\Throwable $e){
+            // Capturar cualquier error y retornar respuesta con detalles del error
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener datos',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
     
-    // /**
-    //  * Muestra el calendario con las citas de la clínica.
-    //  */
-    // public function index_calendario(){
+/**
+ * Obtiene y formatea todas las citas programadas para la clínica asociada al usuario dado.
+ *
+ * Utiliza el ID de usuario para obtener la clínica y luego recupera todas las citas
+ * de esa clínica, incluyendo la información relacionada (personal, paciente, servicio).
+ * Los datos de las citas son mapeados para un formato específico de calendario/vista.
+ *
+ * @param int $usuario_id El ID del usuario actual para determinar la clínica.
+ * @return \Illuminate\Http\JsonResponse Retorna una respuesta JSON con 'success' y
+ * el array de citas formateadas ('citas') en caso de éxito,
+ * o un mensaje de error con código 500 en caso de fallo.
+ */    
+    public function index_calendario($usuario_id){
 
-    //     $datos=$this->usuarioService->DatosUsuario();
-    //     $datosGuia = $this->obtenerDatosGuia();
+        try{
+            //Obtener datos clave del usuario
+            $datos=$this->usuarioService->DatosUsuario($usuario_id);
 
-    //     $citas=Citas::with(['personal','paciente','servicio'])->wherehas('personal.usuario',function($q) use($datos){
-    //                     $q->where('clinica_id',$datos['clinica_id']);
-    //                 })
-    //                 ->get()
-    //                 ->map(function ($cita){
-    //                     return[
-    //                         'id' => $cita->id,
-    //                         'fecha_citaFormato'=>Carbon::parse($cita->fecha_cita)->locale('es')->isoFormat('D [de] MMMM [de] YYYY'),
-    //                         'fecha_cita' => $cita->fecha_cita,  
-    //                         'hora_inicio' => $cita->hora_inicio,
-    //                         'hora_fin' => $cita->hora_fin,
-    //                         'paciente_id'=>$cita->paciente->id,
-    //                         'alias'=>$cita->paciente->alias,
-    //                         'nombre_paciente' => $cita->paciente->nombre,
-    //                         'apellidoP_paciente' => $cita->paciente->apellido_paterno,
-    //                         'apellidoM_paciente' => $cita->paciente->apellido_materno,
-    //                         'nombre_medico' => $cita->personal->nombre,
-    //                         'apellidoP_medico' => $cita->personal->apellido_paterno,
-    //                         'apellidoM_medico' => $cita->personal->apellido_materno,
-    //                         'servicio' => $cita->servicio->descripcion,
-    //                         'status' => $cita->status->descripcion
-    //                     ];
-    //                 });
+            //Obtiene todas las citas relacionadas al usuario que pertenece a una clínica.
+            $citas=Citas::with(['personal','paciente','servicio'])->wherehas('personal.usuario',function($q) use($datos){
+                    $q->where('clinica_id',$datos['clinica_id']);
+                })
+                ->get()
+                ->map(function ($cita){
+                    return[
+                        'id' => $cita->id,
+                        'fecha_citaFormato'=>Carbon::parse($cita->fecha_cita)->locale('es')->isoFormat('D [de] MMMM [de] YYYY'),
+                        'fecha_cita' => $cita->fecha_cita,  
+                        'hora_inicio' => $cita->hora_inicio,
+                        'hora_fin' => $cita->hora_fin,
+                        'paciente_id'=>$cita->paciente->id,
+                        'alias'=>$cita->paciente->alias,
+                        'nombre_paciente' => $cita->paciente->nombre,
+                        'apellidoP_paciente' => $cita->paciente->apellido_paterno,
+                        'apellidoM_paciente' => $cita->paciente->apellido_materno,
+                        'nombre_medico' => $cita->personal->nombre,
+                        'apellidoP_medico' => $cita->personal->apellido_paterno,
+                        'apellidoM_medico' => $cita->personal->apellido_materno,
+                        'servicio' => $cita->servicio->descripcion,
+                        'status' => $cita->status->descripcion
+                    ];
+                });
+
+            //Retorna la respuesta en formato JSON con los datos recopilados.
+            return response()->json([
+                'success'=>true,
+                'data'=>compact(
+                    'citas'
+                )
+            ]);
+        }catch(\Throwable $e){
+            // Capturar cualquier error y retornar respuesta con detalles del error
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener datos',
+                'error' => $e->getMessage(),
+            ], 500);
+        } 
+    }
+
+/**
+ * Obtiene un listado de citas programadas para la clínica del usuario,
+ * permitiendo filtrar los resultados por paciente, médico, estado y fecha.
+ *
+ * Además, retorna los listados completos de personal médico y pacientes
+ * de la clínica para ser usados en los selectores de filtrado en la vista.
+ *
+ * @param \Illuminate\Http\Request $request La solicitud HTTP que puede contener parámetros de filtro (paciente, medico, estado, fecha).
+ * @param int $usuario_id El ID del usuario actual para determinar la clínica.
+ * @return \Illuminate\Http\JsonResponse Retorna una respuesta JSON con 'success' y los datos
+ * (personal_medico, pacientes, citas, resultado del filtro) en caso de éxito,
+ * o un mensaje de error con código 500 en caso de fallo.
+ */
+    public function index_citas(Request $request,$usuario_id){
+
+        try{
+            //Obtener datos clave del usuario
+            $datos=$this->usuarioService->DatosUsuario($usuario_id);
+
+            //Obtener listado de médicos de la clínica.
+            $personal_medico=Personal::whereHas('usuario',function($q) use($datos){
+                $q->where('clinica_id',$datos['clinica_id']);
+            })->where('puesto_id',2)->get();
+
+            //Obtener listado de pacientes de la clínica para los filtros.
+            $pacientes=pacientes::where('clinica_id',$datos['clinica_id'])->get();
+            
+            //Iniciar la consulta base para obtener todas las citas de la clínica.
+            $query=citas::query()->with(['paciente','servicio','personal.usuario','status'])
+            ->whereHas('personal.usuario',function($q) use($datos){
+                $q->where('clinica_id',$datos['clinica_id']);
+            })->orderBy('fecha_cita','desc')
+            ->orderBy('hora_inicio','asc');  
+
+            // Array para almacenar los filtros aplicados y mostrarlos al usuario.
+            $filtrobusqueda=[];
+
+            // --- Aplicación de Filtros Condicionales ---
+            if($request->filled('paciente')){
+                $query->whereHas('paciente',function($q) use ($request){
+                    $q->where('id','=',$request->paciente);
+                });
+                $paciente=Pacientes::find($request->paciente);
+                $filtrobusqueda[]="Paciente: ".($paciente ? $paciente->nombre:"Desconocido");
+            }
+
+            if($request->filled('medico')){
+                $query->whereHas('personal',function($q) use ($request){
+                    $q->where('id','=',$request->medico);
+                });
+                $medico=Personal::find($request->medico);
+                $filtrobusqueda[] = "Medico: ".($medico ? $medico->nombre:"Desconocido");
+            }
+
+            if ($request->filled('estado')) {
+                $query->where('status_id', $request->estado);
+                $filtrobusqueda[]="Estado: ".ucfirst($request->estado);
+            }
+
+            if ($request->filled('fecha')) {
+                $query->whereDate('fecha_cita', $request->fecha);
+                $filtrobusqueda[]="Fecha: ".$request->fecha;
+            }
+
+            //Ejecutar la consulta final y obtener las citas.
+            $citas = $query->get();
+
+            //Preparar el mensaje de resultado del filtro.
+            $resultado=count($citas)>0 ? "Se encontraron: ".count($citas)." citas":"No se encontraron resultado";
+            if(!empty($filtrobusqueda)){
+                $resultado.=" para ".implode(", ",$filtrobusqueda);
+            }
+
+            //Retorna la respuesta en formato JSON con los datos recopilados.
+            return response()->json([
+                'success'=>true,
+                'data'=>compact(
+                    'personal_medico',
+                    'pacientes',
+                    'citas',
+                    'resultado'
+                )
+            ]);
+        }catch(\Throwable $e){
+            // Capturar cualquier error y retornar respuesta con detalles del error
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener datos',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
         
-    //     return view('recepcion.calendario', array_merge(compact('citas'),$datos, $datosGuia));
-    // }
-
-    // /**
-    //  * Muestra lista de citas con filtros para médico y paciente.
-    //  */
-
-    // public function index_citas(){
-
-    //     $datos=$this->usuarioService->DatosUsuario();
-    //     $datosGuia = $this->obtenerDatosGuia();
-
-    //     $conteoDatos=$this->conteoDatos();
-
-    //     $personal_medico=Personal::whereHas('usuario',function($q) use($datos){
-    //         $q->where('clinica_id',$datos['clinica_id']);
-    //     })->where('puesto_id',2)->get();
-
-    //     $pacientes=pacientes::where('clinica_id',$datos['clinica_id'])->get();
         
-    //      $citas=citas::whereHas('personal.usuario',function($q) use($datos){
-    //         $q->where('clinica_id',$datos['clinica_id']);
-    //     })->orderBy('fecha_cita','desc')
-    //     ->orderBy('hora_inicio','asc')->get();  
-        
-    //     $resultado=count($citas)>0 ? "Se encontraron: ".count($citas). " citas" : "No se encontraron resultados"; 
+    }
 
-       
+    //detallecita se encuentra en adminController-adminPanel/DetalleCita
 
-    //     return view('recepcion.citarecepcion',array_merge(compact('citas','personal_medico','pacientes','resultado'),$datos,$conteoDatos, $datosGuia));
-    // }
-
-    // /**
-    //  * Muestra detalles de una cita y su paciente.
-    //  */
-    // public function index_detallecita($cita_id,$paciente_id){
-       
-    //     $datos=$this->usuarioService->DatosUsuario();
-    //     $datosGuia = $this->obtenerDatosGuia();
-    
-    //     $cita=Citas::where('id',$cita_id)->first();
-    //     $paciente=Pacientes::where('id',$paciente_id)->first();
-    //     $familiar_paciente=Familiar_paciente::where('paciente_id',$paciente_id)->first();
-    //     $observaciones=Observaciones::where('paciente_id',$paciente_id)->get();
-    //     $servicio=Servicio::where('id',$cita->servicio_id)->first();
-    //     $medico=Personal::where('id','=',$cita->personal_id)->first();
-    //     $expediente=Expedientes::where('cita_id',$cita_id)->get();
-
-
-    //     return view('recepcion.detallecitarecepcion',array_merge(compact('cita','observaciones','paciente','familiar_paciente','expediente','servicio','medico'),$datos, $datosGuia));
-
-    // }
-
-    // /**
-    //  * Busca citas según filtros enviados por request.
-    //  */
-    // public function buscarCitas(Request $request){
-
-    //     $datos=$this->usuarioService->DatosUsuario();
-
-    //     $conteoDatos=$this->conteoDatos();
-    //     $datosGuia = $this->obtenerDatosGuia();
-
-    //     $personal_medico=Personal::Where('puesto_id','=',2)->get();
-    //     $pacientes=pacientes::all();
-
-    //     $query=Citas::query()->orderBy('fecha_cita','desc');
-
-    //     $filtrobusqueda=[];
-
-    //     if($request->filled('paciente')){
-    //         $query->whereHas('paciente',function($q) use ($request){
-    //             $q->where('id','=',$request->paciente);
-    //         });
-    //         $paciente=Pacientes::find($request->paciente);
-    //         $filtrobusqueda[]="Paciente: ".($paciente ? $paciente->nombre:"Desconocido");
-    //     }
-
-    //     if($request->filled('medico')){
-    //         $query->whereHas('personal',function($q) use ($request){
-    //             $q->where('id','=',$request->medico);
-    //         });
-    //         $medico=Personal::find($request->medico);
-    //         $filtrobusqueda[] = "Medico: ".($medico ? $medico->nombre:"Desconocido");
-    //     }
-
-    //     if ($request->filled('estado')) {
-    //         $query->where('status_id', $request->estado);
-    //         $filtrobusqueda[]="Estado: ".ucfirst($request->estado);
-
-    //     }
-
-    //     if ($request->filled('fecha')) {
-    //         $query->whereDate('fecha_cita', $request->fecha);
-    //         $filtrobusqueda[]="Fecha: ".$request->fecha;
-
-    //     }
-
-    //     $citas = $query->get();
-
-    //     $resultado=count($citas)>0 ? "Se encontraron: ".count($citas)." citas":"No se encontraron resultado";
-    //     if(!empty($filtrobusqueda)){
-    //         $resultado.=" para ".implode(", ",$filtrobusqueda);
-    //     }
-    
-
-    //     return view('recepcion.citarecepcion', array_merge(compact('citas','personal_medico','pacientes','resultado'),$datos,$conteoDatos, $datosGuia));
-    // }
-
-    // public function aviso_privacidad(){
-    //     $datos=$this->usuarioService->DatosUsuario();
-
-    //     return view('recepcion.AvisoPrivacidad',$datos);
-    // }
+    //perfilrecepcion se encuentra en adminController-adminPanel/DetalleUsuario
 
    
 }

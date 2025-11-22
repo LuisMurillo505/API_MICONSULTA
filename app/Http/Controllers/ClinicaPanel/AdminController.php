@@ -330,45 +330,73 @@ class AdminController extends Controller
        
     }
 
-
-    //  /**
-    //  * Muestra el detalle de un usuario en particular.
-    //  */
-    // public function index_detalleUsuario($id){
-
-
-    //     $usuarioP=Usuario::find($id);
-       
-    //     $especialidad=Especialidad::where('clinica_id',$datos['clinica_id'])->get();
-    //     $puesto=Puesto::all();
-    //     $personal=Personal::where('usuario_id',$id)->first();
-    //     $especialidad_user=Especialidad::where('id',$personal->especialidad_id)->first();
-    //     $puesto_user=Puesto::where('id',$personal->puesto_id)->first();
-    //     $personal_estado=Usuario::where('id', $usuarioP->estado);
-    //     $disponibilidad=Disponibilidad::where('personal_id',$personal->id)->get()->keyBy('dia');
-
-    //     return view('admin.detalleusuarios', array_merge(compact('usuarioP','especialidad','puesto','personal','especialidad_user','puesto_user', 'personal_estado','disponibilidad'),$datos, $datosGuia));
-    // }
-
     // /**
     //  * Muestra la lista de pacientes y actualiza sus edades.
     //  */
-    // public function index_pacientes(){
+    public function index_pacientes(Request $request,$usuario_id){
 
-    //     $datos=$this->usuarioService->DatosUsuario();
-    //     $datosGuia = $this->obtenerDatosGuia();
-    //     $conteoDatos = $this->conteoDatos();
+        try{
+            //Obtener datos clave del usuario
+            $datos=$this->usuarioService->DatosUsuario($usuario_id);
 
-    //     $pacientes=Pacientes::whereHas('status',function($q) use($datos){
-    //         $q->where('clinica_id',$datos['clinica_id']);
-    //     })->get();
+          
+            $Lista_paciente=Pacientes::where('clinica_id',$datos['clinica_id'])->get();
 
-    //     $Lista_paciente=Pacientes::where('clinica_id',$datos['clinica_id'])->get();
+            $this->actualizarEdad($datos['clinica_id']);
 
-    //     $this->actualizarEdad();
+            $query=Pacientes::query()->whereHas('status',function($q) use($datos){
+                $q->where('clinica_id',$datos['clinica_id']);
+            })->with('status');
 
-    //     return view('admin.pacientes',array_merge(compact('pacientes','Lista_paciente'),$datos, $datosGuia, $conteoDatos));
-    // }
+
+            if($request->filled('paciente')){
+                $query->where('id',$request->paciente);
+            }
+
+            if($request->filled('estado')){
+                $query->whereHas('status',function($q) use($request){
+                    $q->where('descripcion',$request->estado);
+                });
+            }
+             // Filtrar por nombre (autocomplete)
+            if ($request->ajax() && $request->filled('nombre')) {
+                $pacientes = $query->where('nombre', 'like', $request->nombre . '%')
+                    ->limit(10)
+                    ->get(['id', 'nombre', 'foto', 'clinica_id']);
+
+                // Modificar la foto y agregar nombre clínica usando $datos['nombre_clinica']
+                foreach ($pacientes as $p) {
+                    $p->foto = $p->foto
+                        ? asset('storage/' . $datos['nombre_clinica'] . '/pacientes/' . $p->foto)
+                        : asset('images/p1.webp');
+
+                    // Opcional: agregar el nombre de la clínica en la respuesta
+                    $p->nombre_clinica = $datos['nombre_clinica'];
+                }
+
+                return response()->json($pacientes);
+            }
+
+            $pacientes = $query->get(); 
+
+            return response()->json([
+                'success'=>true,
+                'data'=>compact(
+                    'pacientes',
+                    'Lista_paciente'
+                )
+            ]);
+
+       }catch(\Throwable $e){
+            // Capturar cualquier error y retornar respuesta con detalles del error
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener datos',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+      
+    }
 
     // /**
     //  * Búsqueda de pacientes por ID o estado.
@@ -421,144 +449,58 @@ class AdminController extends Controller
     //  /**
     //  * Actualiza la edad de todos los pacientes según su fecha de nacimiento.
     //  */
-    // public function actualizarEdad(){
-    //     $datos=$this->usuarioService->DatosUsuario();
+    public function actualizarEdad($clinica_id){
 
-    //     $pacientes=Pacientes::where('clinica_id',$datos['clinica_id'])->get();
+        $pacientes=Pacientes::where('clinica_id',$clinica_id)->get();
 
-    //     foreach($pacientes as $pac){
-    //         $edad=Carbon::Parse($pac->fecha_nacimiento)->age;
-    //         $pac->update([
-    //             'edad'=>$edad
-    //         ]);
-    //     }
+        foreach($pacientes as $pac){
+            $edad=Carbon::Parse($pac->fecha_nacimiento)->age;
+            $pac->update([
+                'edad'=>$edad
+            ]);
+        }
         
-    // }
+    }
 
     //  /**
     //  * Vista de formulario para crear un nuevo paciente.
     //  */
-    // public function index_createpaciente(){
+    public function index_createpaciente(){
 
-    //     $datos=$this->usuarioService->DatosUsuario();
-    //     $datosGuia = $this->obtenerDatosGuia();
+       try{
 
-    //     session(['previous_url' => url()->previous()]);
+            $estado=Status::limit(2)->get();
+            $ciudades=Ciudades::all();
 
-    //     $estado=Status::limit(2)->get();
-    //     $ciudades=Ciudades::all();
+            return response()->json([
+                'success'=>true,
+                'data'=>compact(
+                    'estado',
+                    'ciudades'
+                )
+            ]);
 
-    //     return view('admin.createpacientes',array_merge(compact('estado','ciudades'),$datos, $datosGuia));
-    // }
-
-    //  /**
-    //  * Detalle de un paciente específico.
-    //  */
-    // public function index_detallepaciente($paciente_id){
-    //     $user=auth()->user();
-    //     $datos=$this->usuarioService->DatosUsuario();
-
-    //     $datosGuia = $this->obtenerDatosGuia();
-
-    //     $ciudades=Ciudades::all();
-
-    //     $paciente=Pacientes::with(['status','direccion','historial_clinico'])
-    //         ->where('id',$paciente_id)->first();
-
-    //     $observaciones=Observaciones::where('paciente_id',$paciente_id)->get();
-
-    //     $familiar=Familiar_paciente::with(['direccion'])
-    //         ->where('paciente_id',$paciente_id)->get();
-
-            
-    //     $somatometria=Somatometria_paciente::where('paciente_id',$paciente_id)->first();
-
-    //     $archivos = ArchivosPaciente::where('paciente_id', $paciente_id)->get();
-
-    //     $infoArchivos = $this->planService->puedeSubirArchivosPacientes($paciente->clinica_id,$paciente->id);
-
-    //     // dd($infoArchivos);
-
-
-    //     return view('admin.detallepaciente', array_merge([
-    //         'clinica'=>$user->clinicas,
-    //         'paciente'=>$paciente,
-    //         'observaciones'=>$observaciones,
-    //         'estado_paciente'=>$paciente->status,
-    //         'familiar'=>$familiar,
-    //         'ciudades'=>$ciudades,
-    //         'somatometria'=>$somatometria,
-    //         'archivosPaciente' => $archivos,
-    //         'infoArchivos' => $infoArchivos
-
-    //     ], $datosGuia,$datos));
-
-    // }
+        }catch(\Throwable $e){
+            // Capturar cualquier error y retornar respuesta con detalles del error
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener datos',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+       
+    }
 
     //  /**
-    //  * Muestra el expediente médico de un paciente.
+    //  *  detallepaciente se encuentra en adminController-adminPanel/DetallePaciente
     //  */
-    // public function index_expediente($paciente_id, Request $request){
 
-    //     $datos=$this->usuarioService->DatosUsuario();
-    //     $datosGuia = $this->obtenerDatosGuia();
+    //  /**
+    //  *  expediente se encuentra en adminController-adminPanel/Expediente
+    //  */
     
 
-    //     $paciente=Pacientes::find($paciente_id);
-
-    //     $expediente=Expedientes::with(['paciente','cita.servicio', 'personal.especialidad'])
-    //         ->whereHas('paciente', function($q) use($paciente_id){
-    //             $q->where('id',$paciente_id);
-    //         })->orderBy('id','desc')->get();
-
-
-    //     $observaciones=Observaciones::where('paciente_id',$paciente_id)->get();
-
-    //     $personal_medico = Personal::whereHas('usuario', function($q) use($datos) {
-    //         $q->where('clinica_id', $datos['clinica_id']);
-    //     })->where('puesto_id', 2)->get();
-
-    //     $servicios = Servicio::where('clinica_id', $datos['clinica_id'])->get();
-
-    //     $query = Expedientes::with(['paciente','cita.servicio', 'personal.especialidad'])
-    //         ->whereHas('paciente', function ($q) use ($paciente_id) {
-    //             $q->where('id', $paciente_id);
-    //         });
-
-    //     $filtrobusqueda = [];
-
-    //     if ($request->filled('medico')) {
-    //         $query->where('personal_id', $request->medico ?? null);
-    //         $medico = Personal::find($request->medico ?? null);
-    //         $filtrobusqueda[] = "Médico: " . ($medico ? $medico->nombre ?? null : "Desconocido");
-    //     }
-
-    //     if ($request->filled('fecha')) {
-    //         $query->whereDate('fecha', $request->fecha ?? null);
-    //         $filtrobusqueda[] = "Fecha: " . ($request->fecha ?? null);
-    //     }
-
-    //     if ($request->filled('servicio')) {
-    //         $query->whereHas('cita', function ($q) use ($request) {
-    //             $q->where('servicio_id', $request->servicio ?? null);
-    //         });
-    //         $servicio = Servicio::find($request->servicio ?? null );
-    //         $filtrobusqueda[] = "Servicio: " . ($servicio ? $servicio->nombre ?? null: "Desconocido");
-    //     }
-
-    //     $expediente = $query->orderBy('fecha', 'desc')->get();
-
-    //     $resultado = count($expediente) > 0
-    //         ? "Se encontraron: " . count($expediente) . " consultas"
-    //         : "No se encontraron resultados";
-
-    //     if (!empty($filtrobusqueda)) {
-    //         $resultado .= " para " . implode(", ", $filtrobusqueda);
-    //     }
-
-    //     return view('admin.expediente', array_merge(compact('expediente', 'personal_medico', 'servicios', 'resultado', 'paciente','expediente','observaciones'), $datos, $datosGuia));
-    // }   
-
+    
     // /**
     //  * Muestra el calendario de citas de la clínica.
     //  */

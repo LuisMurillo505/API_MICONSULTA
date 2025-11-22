@@ -17,6 +17,10 @@ Route::middleware('api.key')->get('/perfilAdmin/{usuario_id}', [AdminController:
 Route::middleware('api.key')->get('/usuarios/{usuario_id}', [AdminController::class, 'index_usuarios']);
 Route::middleware('api.key')->get('/crear-usuarios/{usuario_id}', [AdminController::class, 'index_crearUsuario']);
 Route::middleware('api.key')->put('/actualizar-usuarios/{usuario_id}/{foto}', [UsuariosController::class, 'update']);
+//pacientes
+Route::middleware('api.key')->get('/pacientes/{usuario_id}', [AdminController::class, 'index_pacientes']);
+Route::middleware('api.key')->get('/crear-pacientes', [AdminController::class, 'index_createpaciente']);
+
 
 
 

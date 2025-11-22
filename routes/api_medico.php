@@ -11,11 +11,6 @@ Route::middleware('api.key')->get('/medico/{usuario_id}', [MedicoController::cla
 Route::middleware('api.key')->get('/citasmedico/{usuario_id}', [MedicoController::class, 'index_citas']);
 Route::middleware('api.key')->get('/calendariomedico/{usuario_id}', [MedicoController::class, 'index_calendario']);
 //detallecita esta en admincontroller-adminPanel
-Route::middleware('api.key')->get('/perfilmedico/{usuario_id}', [MedicoController::class, 'index_perfil']);
-
-
-//recepcion
-Route::middleware('api.key')->get('/recepcion/{usuario_id}', [RecepcionController::class, 'index']);
 
 
 

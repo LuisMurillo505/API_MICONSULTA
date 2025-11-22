@@ -111,7 +111,7 @@ class UsuarioService
         $clave_paso = PasoGuia::where('id', 1)->value('clave_paso');
         $paso_completo = [];
         $paso_completo = ProgresoUsuarioGuia::where('usuario_id', $usuario_id)->where('esta_completado', true)->pluck('clave_paso');
-        // $PasoGuia2 = PasoGuia::with(['progreso' => function ($q) use ($usuario_id) {
+        // $PasoGuia3 = PasoGuia::with(['progreso' => function ($q) use ($usuario_id) {
         //     $q->where('usuario_id', $usuario_id);
         // }])->get();
         $PasoGuia2 = PasoGuia::whereHas('progreso', function ($q) use ($usuario_id) {

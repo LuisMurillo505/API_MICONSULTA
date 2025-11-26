@@ -20,7 +20,15 @@ Route::middleware('api.key')->put('/actualizar-usuarios/{usuario_id}/{foto}', [U
 //pacientes
 Route::middleware('api.key')->get('/pacientes/{usuario_id}', [AdminController::class, 'index_pacientes']);
 Route::middleware('api.key')->get('/crear-pacientes', [AdminController::class, 'index_createpaciente']);
-
+Route::middleware('api.key')->get('/buscarPaciente/{usuario_id}', [AdminController::class, 'buscarPaciente']);
+//servicios
+Route::middleware('api.key')->get('/servicios/{usuario_id}', [AdminController::class, 'index_servicios']);
+//profesiones
+Route::middleware('api.key')->get('/profesiones/{usuario_id}', [AdminController::class, 'index_profesiones']);
+//citas
+Route::middleware('api.key')->get('/citas/{usuario_id}', [AdminController::class, 'index_citas']);
+Route::middleware('api.key')->get('/createcita/{clinica_id}', [AdminController::class, 'index_createcita']);
+Route::middleware('api.key')->get('/calendario/{usuario_id}', [AdminController::class, 'index_calendario']);
 
 
 

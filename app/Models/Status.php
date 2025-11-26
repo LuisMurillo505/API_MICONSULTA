@@ -32,6 +32,10 @@ class Status extends Model
         return $this->hasMany(ArchivosPaciente::class,'status_id');
     } 
 
+     public function servicios(){
+        return $this->hasMany(Servicio::class,'status_id');
+    } 
+
     
 
 }

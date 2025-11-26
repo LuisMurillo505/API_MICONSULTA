@@ -5,7 +5,6 @@ namespace App\Http\Controllers\ClinicaPanel;
 use App\Http\Controllers\Controller;
 use Carbon\Carbon;
 use App\Models\Citas;
-
 use App\Models\Pacientes;
 use App\Services\UsuarioService;
 use App\Services\NotificacionService;

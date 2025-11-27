@@ -139,13 +139,24 @@ class AdminController extends Controller
             //Obtener los conteos y estadísticas relacionadas con la clínica
             $conteoDatos = $this->conteoDatos($usuario_id);
 
+            $adminMedico=false;
+            if($datos['personal_id']){
+                $adminMedico=true;
+            }
+
+            $especialidad=Especialidad::where('status_id',1)
+                ->where('clinica_id',$datos['clinica_id'])->get();
+
+
             // Combinar toda la información obtenida en un solo arreglo.
             return response()->json([
                 'success' => true,
                 'data'=>array_merge(
                     (array)$datos,
                     (array)$datosGuia,
-                    (array)$conteoDatos)
+                    (array)$conteoDatos,
+                    compact('adminMedico','especialidad'))
+                    
             ]);   
         }catch(\Throwable $e){
             // Capturar cualquier error y retornar respuesta con detalles del error
@@ -311,7 +322,7 @@ class AdminController extends Controller
                 ->where('clinica_id',$usuario->clinica_id)->get();
 
             //obtiene los puestos en el sistema(medico o recepcion)
-            $puesto=Puesto::all();
+            $puesto=Puesto::limit(2)->get();
 
             //Retornar los datos en formato JSON con estado de éxito.
             return response()->json([
@@ -688,7 +699,7 @@ class AdminController extends Controller
 
             $personal_medico=Personal::whereHas('usuario',function($q) use($datos){
                 $q->where('clinica_id',$datos['clinica_id']);
-            })->where('puesto_id',2)->get();
+            })->where('puesto_id','!=',1)->get();
 
             $pacientes=pacientes::where('clinica_id',$datos['clinica_id'])->get();
             
@@ -778,7 +789,7 @@ class AdminController extends Controller
             $personal=Personal::whereHas('usuario',function($q) use($clinica_id){
                 $q->where('clinica_id',$clinica_id)
                     ->where('status_id',1);
-            })->where('puesto_id',2)->get();
+            })->where('puesto_id','!=',1)->get();
 
             //Obtener todos los servicios ofrecidos por la clínica específica.
             $servicios=Servicio::where('clinica_id',$clinica_id)

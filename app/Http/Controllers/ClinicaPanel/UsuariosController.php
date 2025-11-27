@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\ClinicaPanel;
 
 use App\Http\Controllers\Controller;
+use App\Models\Especialidad;
 use App\Models\Personal;
 use App\Services\UsuarioService;
 use App\Services\PlanService;
@@ -14,7 +15,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Mail;
 use Exception;
-
+use Illuminate\Support\Facades\Log;
 /**
  * AdminController - Controlador para gestionar la administracion
  */
@@ -104,6 +105,60 @@ class UsuariosController extends Controller
     //     }
     
     // }   
+
+    public function store_adminMedico(Request $request,$usuario_id){
+        try{
+    
+
+            $datos=$this->usuarioService->DatosUsuario($usuario_id);
+
+            // Log::info($request->all());
+            // Validación de los campos de entrada
+ 
+            if($request->profesion){
+                $profesion=Especialidad::create([
+                    'clinica_id'=>$datos['clinica_id'],
+                    'descripcion'=>$request->profesion,
+                    'status_id'=> 1
+                ]);
+                $profesion=$profesion->id;
+            }else{
+                $profesion=$request->especialidad;
+            }
+           
+
+            $personal=Personal::create([
+                'nombre' => $request->nombre,
+                'apellido_paterno' => $request->apellido_paterno,
+                'apellido_materno' => $request->apellido_materno,
+                'fecha_nacimiento' => $request->fecha_nacimiento,
+                'especialidad_id' =>  $profesion ?? null,
+                'cedula_profesional' =>  null,
+                'telefono' => $datos['clinica']['telefono'],
+                'puesto_id' => 3,
+                'foto'=>null,
+                'usuario_id'=>$usuario_id,
+                'created_at'=>now(),
+                'updated_at'=>now()
+            ]);        
+
+             // Retorna los datos en formato JSON
+            return response()->json([
+                'success'=>true,
+            ]);
+
+        } catch (Exception $e) {
+            Log::error($e->getMessage());
+            // Manejo de errores: retorna mensaje descriptivo con el detalle de la excepción.
+            return response()->json([
+                'success' => false,
+                'message' => 'Ocurrió un error al actualizar el usuario',
+                'error' => $e->getMessage(),
+            ], 500);   
+
+        }
+    
+    }
 
      /**
      * Actualizar los datos de un usuario

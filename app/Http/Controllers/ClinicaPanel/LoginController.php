@@ -52,16 +52,9 @@ class LoginController extends Controller
                 return response()->json([
                     'success' => false,
                     'message' => 'Correo no registrado. Por favor, registra tu clínica.',
+                    'error'=> 'Usuario_noRegistrado'
                 ], 404);
             }
-
-            //Verificar credenciales
-            // if (!Auth::attempt($request->only('correo', 'password'))) {
-            //     return response()->json([
-            //         'success' => false,
-            //         'message' => 'Usuario o contraseña incorrecta.',
-            //     ], 401);
-            // }
 
             //Eliminar sesiones anteriores (opcional si usas Sanctum)
             DB::table('sessions')->where('user_id', $usuario->id)->delete();
@@ -70,13 +63,15 @@ class LoginController extends Controller
             $verificarSub = $this->suscripcionService->verificarSuscripcion($usuario);
 
             if ($verificarSub['estado'] === 'vencido') {
-                $mensaje = $verificarSub['es_personal']
-                    ? $verificarSub['mensaje'] . ', contacta al administrador para renovar el plan.'
-                    : 'Su plan actual ha llegado a su fecha de vencimiento. Por favor, renuévalo para continuar.';
+                $mensaje = $verificarSub['es_personal'] === 'Personal Administrador'
+                    ? 'Su plan actual ha llegado a su fecha de vencimiento. Por favor, renuévalo para continuar.'
+                    : $verificarSub['mensaje'] . ', contacta al administrador para renovar el plan.' ;
 
                 return response()->json([
                     'success' => false,
+                    'verificarSub'=>$verificarSub,
                     'message' => $mensaje,
+                    'error'=>'plan_vencido'
                 ], 403);
             }
 
@@ -86,7 +81,7 @@ class LoginController extends Controller
                 ->first();
 
             // Determinar tipo de acceso
-            $rol = 'Administrador';
+            $rol = 'Personal Administrador';
             if ($perfil) {
                 $rol = $perfil->puesto->descripcion;
             }

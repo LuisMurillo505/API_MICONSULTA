@@ -37,14 +37,15 @@ class SuscripcionService
     public function verificarSuscripcion($usuario){
         try{
             $suscripcion = $usuario->clinicas->suscripcion ?? null;
+            $plan=$suscripcion->plan;
 
             // Verificación de estado del plan
             if ($suscripcion) {
                 $statusId = $suscripcion->status_id;
 
-                if (in_array($statusId, [2,5]) || $suscripcion->dias_restantes <= -4) {
+                if (in_array($statusId, [2,5]) || $suscripcion->dias_restantes < -($plan->dias_espera)) {
                     // Si el plan expiró, actualiza el estado si aplica
-                    if ($suscripcion->getDiasRestantes() <= -4 && $statusId !== 2) {
+                    if ($suscripcion->getDiasRestantes() < -($plan->dias_espera) && $statusId !== 2) {
                         $suscripcion->status_id = 2;
                         $suscripcion->save();
                     }
@@ -52,7 +53,7 @@ class SuscripcionService
                     return [
                         'estado' => 'vencido',
                         'mensaje' => 'Plan Vencido',
-                        'es_personal' => $usuario->personal,
+                        'es_personal' => $usuario->personal->puesto->descripcion ?? 'Personal Administrador',
                     ];
                 }
             }
@@ -64,62 +65,62 @@ class SuscripcionService
     }
 
     //obtiene o crea un nuevo cliente en stripe
-    // public function crearClienteStripe($usuario):Customer{
-    //     try{
-    //         $Customers = Customer::all([
-    //             'email' => $usuario->correo,
-    //             'limit' => 1,
-    //         ]);
+    public function crearClienteStripe($usuario):Customer{
+        try{
+            $Customers = Customer::all([
+                'email' => $usuario->correo,
+                'limit' => 1,
+            ]);
 
-    //         if(!empty($Customers->data)){
-    //             $stripeCustomer = $Customers->data[0];
-    //         }else{
-    //             $stripeCustomer = Customer::create([
-    //                 'email' =>  $usuario->correo,
-    //                 'name' => $usuario->clinicas->nombre,
-    //                 'metadata' => [
-    //                     'usuario_id' => $usuario->id,
-    //                     'clinica_id' => $usuario->clinicas->id,
-    //                 ],
-    //             ]);
-    //         }
+            if(!empty($Customers->data)){
+                $stripeCustomer = $Customers->data[0];
+            }else{
+                $stripeCustomer = Customer::create([
+                    'email' =>  $usuario->correo,
+                    'name' => $usuario->clinicas->nombre,
+                    'metadata' => [
+                        'usuario_id' => $usuario->id,
+                        'clinica_id' => $usuario->clinicas->id,
+                    ],
+                ]);
+            }
 
-    //         //Actualizar el campo stripe_customer_id en clinica
-    //         $usuario->clinicas->stripe_customer_id= $stripeCustomer->id;
-    //         $usuario->clinicas->save();
+            //Actualizar el campo stripe_customer_id en clinica
+            $usuario->clinicas->stripe_customer_id= $stripeCustomer->id;
+            $usuario->clinicas->save();
 
-    //         return $stripeCustomer;
+            return $stripeCustomer;
             
-    //     }catch(Exception $e){
-    //         throw $e;
-    //     }
-    // }
+        }catch(Exception $e){
+            throw $e;
+        }
+    }
 
     //Manda al checkout de stripe para completar el pago
-    // public function checkoutSession($plan, $stripeCustomer): Session{
+    public function checkoutSession($plan, $stripeCustomer): Session{
 
-    //     try{
+        try{
             
-    //         // Crear sesión de Checkout
-    //         $checkoutSession = Session::create([
-    //             'mode' => 'subscription',
-    //             'customer' => $stripeCustomer,
-    //             'line_items' => [[
-    //                 'price' => $plan->stripe_price_id,
-    //                 'quantity' => 1,
-    //             ]],
-    //             'allow_promotion_codes' => true,
-    //             'success_url' => route('suscripcion.exito') . '?session_id={CHECKOUT_SESSION_ID}',
-    //             'cancel_url' => route('suscripcion.cancelado'),
-    //         ]);
+            // Crear sesión de Checkout
+            $checkoutSession = Session::create([
+                'mode' => 'subscription',
+                'customer' => $stripeCustomer,
+                'line_items' => [[
+                    'price' => $plan->stripe_price_id,
+                    'quantity' => 1,
+                ]],
+                'allow_promotion_codes' => true,
+                'success_url' => route('suscripcion.exito') . '?session_id={CHECKOUT_SESSION_ID}',
+                'cancel_url' => route('suscripcion.cancelado'),
+            ]);
 
-    //         return $checkoutSession;
+            return $checkoutSession;
 
-    //     }catch(Exception $e){
-    //         throw $e;
-    //     }
+        }catch(Exception $e){
+            throw $e;
+        }
 
-    // }
+    }
 
     //activa el plan gratuito
     public function activarPlanGratis($suscripcion,$usuario):void{
@@ -148,61 +149,61 @@ class SuscripcionService
     }
 
     //obtiene datos de la session de stipe
-    // public function stripeSession($session_id):array{
-    //     try{
-    //          // Obtener detalles de la sesión desde Stripe
-    //         $session = Session::retrieve($session_id);
+    public function stripeSession($session_id):array{
+        try{
+             // Obtener detalles de la sesión desde Stripe
+            $session = Session::retrieve($session_id);
 
-    //         $stripeSuscripcionId=$session->subscription;
-    //         $subscription = Subscription::retrieve($session->subscription);
-    //         $stripePriceId = $subscription->items->data[0]->price->id;
+            $stripeSuscripcionId=$session->subscription;
+            $subscription = Subscription::retrieve($session->subscription);
+            $stripePriceId = $subscription->items->data[0]->price->id;
 
-    //         //Datos del pago
-    //         $latestInvoiceId = $subscription->latest_invoice;
-    //         $invoice = \Stripe\Invoice::retrieve($latestInvoiceId);
+            //Datos del pago
+            $latestInvoiceId = $subscription->latest_invoice;
+            $invoice = \Stripe\Invoice::retrieve($latestInvoiceId);
         
-    //         // Número de factura
-    //         $invoiceNumber = $invoice->number;
+            // Número de factura
+            $invoiceNumber = $invoice->number;
 
-    //         // ID del pago
-    //         // $paymentIntentId = $invoice->payment_intent;
-    //         // $paymentIntent = \Stripe\PaymentIntent::retrieve($paymentIntentId);
+            // ID del pago
+            // $paymentIntentId = $invoice->payment_intent;
+            // $paymentIntent = \Stripe\PaymentIntent::retrieve($paymentIntentId);
 
-    //         //cupon aplicado
-    //         if ($session->total_details && $session->total_details->amount_discount > 0) {
-    //             // Cupón aplicado
-    //             $descuento = $session->total_details->amount_discount / 100;
-    //         }
+            //cupon aplicado
+            if ($session->total_details && $session->total_details->amount_discount > 0) {
+                // Cupón aplicado
+                $descuento = $session->total_details->amount_discount / 100;
+            }
           
 
-    //         // Obtener el monto pagado y el estatus de la factura
-    //         $montoPagado = $invoice->amount_paid / 100;
-    //         $status = $invoice->status;
+            // Obtener el monto pagado y el estatus de la factura
+            $montoPagado = $invoice->amount_paid / 100;
+            $status = $invoice->status;
 
-    //         //fecha pago
-    //         $fechaPago = date('Y-m-d H:i:s', $invoice->status_transitions->paid_at);
+            //fecha pago
+            $fechaPago = date('Y-m-d H:i:s', $invoice->status_transitions->paid_at);
 
-    //         //id del cliente
-    //         $stripeCustomerId = $session->customer;
+            //id del cliente
+            $stripeCustomerId = $session->customer;
 
-    //         $data=[
-    //             'stripeSubscriptionId'=>$stripeSuscripcionId,
-    //             'stripePriceId' => $stripePriceId,
-    //             'invoiceNumber' => $invoiceNumber,
-    //             'descuento'=>$descuento ?? null,
-    //             'montoPagado'=>$montoPagado,
-    //             'status' => $status,
-    //             'fechaPago' => $fechaPago,
-    //             'stripeCustomerId' => $stripeCustomerId
-    //         ];
+            $data=[
+                'stripeSubscriptionId'=>$stripeSuscripcionId,
+                'stripePriceId' => $stripePriceId,
+                'invoiceNumber' => $invoiceNumber,
+                'descuento'=>$descuento ?? null,
+                'montoPagado'=>$montoPagado,
+                'status' => $status,
+                'fechaPago' => $fechaPago,
+                'stripeCustomerId' => $stripeCustomerId
+            ];
 
-    //         return  $data;
+            return  $data;
 
 
-    //     }catch(Exception $e){
-    //         throw $e;
-    //     }
-    // }
+        }catch(Exception $e){
+            throw $e;
+        }
+    }
 
     public function calcularTarifa($monto){
         try{
@@ -313,31 +314,31 @@ class SuscripcionService
         }
     }
 
-    // public function invoicePaymentFailed($event){
-    //     try{
-    //         $invoice = $event->data->object;
-    //         $stripe_customer_id = $invoice->customer;
+    public function invoicePaymentFailed($event){
+        try{
+            $invoice = $event->data->object;
+            $stripe_customer_id = $invoice->customer;
             
-    //         $clinica = Clinicas::where('stripe_customer_id', $stripe_customer_id)->first();
-    //         $usuario=Usuario::where('clinica_id',$clinica->id)
-    //         ->whereDoesntHave('personal')
-    //         ->first();
+            $clinica = Clinicas::where('stripe_customer_id', $stripe_customer_id)->first();
+            $usuario=Usuario::where('clinica_id',$clinica->id)
+            ->whereDoesntHave('personal')
+            ->first();
 
-    //         if($clinica){
-    //             // Log::info("Usuario encontrado con customer ID: $stripe_customer_id en invoice.payment_failed.");
+            if($clinica){
+                // Log::info("Usuario encontrado con customer ID: $stripe_customer_id en invoice.payment_failed.");
 
-    //             $clinica->suscripcion->status_id=5;
-    //             $clinica->suscripcion->save();
-    //             Mail::to($usuario->correo)->send(new \App\Mail\ProblemaPagoMail( $clinica));
+                $clinica->suscripcion->status_id=5;
+                $clinica->suscripcion->save();
+                Mail::to($usuario->correo)->send(new \App\Mail\ProblemaPagoMail( $clinica));
 
-    //         } else {
-    //             Log::warning("Usuario no encontrado con customer ID: $stripe_customer_id en invoice.paid.");
-    //         }
+            } else {
+                Log::warning("Usuario no encontrado con customer ID: $stripe_customer_id en invoice.paid.");
+            }
             
-    //     }catch(Exception $e){
-    //         throw $e;
-    //     }
-    // }
+        }catch(Exception $e){
+            throw $e;
+        }
+    }
 
     public function customerSubscriptionUpdated($event){
         try{
@@ -370,44 +371,44 @@ class SuscripcionService
         }
     }
 
-    //  public function customerSubscriptionDeleted($event){
-    //     try{
-    //        $invoice = $event->data->object;
-    //        $stripe_customer_id = $invoice->customer;
+     public function customerSubscriptionDeleted($event){
+        try{
+           $invoice = $event->data->object;
+           $stripe_customer_id = $invoice->customer;
             
-    //         $clinica = Clinicas::where('stripe_customer_id', $stripe_customer_id)->first();
-    //         $usuario=Usuario::where('clinica_id',$clinica->id)
-    //         ->whereDoesntHave('personal')
-    //         ->first();
+            $clinica = Clinicas::where('stripe_customer_id', $stripe_customer_id)->first();
+            $usuario=Usuario::where('clinica_id',$clinica->id)
+            ->whereDoesntHave('personal')
+            ->first();
 
-    //         if($clinica){
-    //             Log::info("Usuario encontrado con customer ID: $stripe_customer_id.");
+            if($clinica){
+                Log::info("Usuario encontrado con customer ID: $stripe_customer_id.");
 
-    //             //Obtener todas las suscripciones activas del cliente
-    //             $Subscriptions = Subscription::all([
-    //                 'customer' => $stripe_customer_id,
-    //                 'status' => 'active',
-    //                 'limit' => 100,
-    //             ]);
+                //Obtener todas las suscripciones activas del cliente
+                $Subscriptions = Subscription::all([
+                    'customer' => $stripe_customer_id,
+                    'status' => 'active',
+                    'limit' => 100,
+                ]);
 
-    //             if(count($Subscriptions->data) > 0){
-    //                 $clinica->suscripcion->status_id=1;
-    //                 $clinica->suscripcion->save();
-    //             }else{
-    //                 $clinica->suscripcion->status_id=2;
-    //                 $clinica->suscripcion->save();
-    //                 Mail::to($usuario->correo)->send(new \App\Mail\SuscripcionCanceladaMail( $clinica));
+                if(count($Subscriptions->data) > 0){
+                    $clinica->suscripcion->status_id=1;
+                    $clinica->suscripcion->save();
+                }else{
+                    $clinica->suscripcion->status_id=2;
+                    $clinica->suscripcion->save();
+                    Mail::to($usuario->correo)->send(new \App\Mail\SuscripcionCanceladaMail( $clinica));
 
-    //             }
+                }
 
-    //         } else {
-    //             Log::warning("Usuario no encontrado con customer ID: $stripe_customer_id.");
-    //         }
+            } else {
+                Log::warning("Usuario no encontrado con customer ID: $stripe_customer_id.");
+            }
             
-    //     }catch(Exception $e){
-    //         throw $e;
-    //     }
-    // }
+        }catch(Exception $e){
+            throw $e;
+        }
+    }
 
 
 

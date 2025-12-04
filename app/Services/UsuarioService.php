@@ -11,11 +11,13 @@ use App\Models\PasoGuia;
 use App\Models\ProgresoUsuarioGuia;
 use App\Models\Direcciones;
 use App\Models\Notificaciones;
+use App\Models\Especialidad;
 use App\Models\Clinicas;
 use App\Models\Citas;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use App\Models\Disponibilidad;
+use Request;
 
 class UsuarioService
 {
@@ -123,38 +125,91 @@ class UsuarioService
         return compact('total_pasos', 'total_pasosF', 'pasosT', 'clave_paso', 'paso_completo', 'PasoGuia2');
     }
 
-    // public function registrarUsuarioClinica(?array $data):Usuario{
-    //     try{
-    //         // Crear clínica sin activar plan aún
-    //         $clinica = Clinicas::create([
-    //             'nombre' => $data['clinica'],
-    //             'telefono' =>  $data['telefono'],
-    //         ]);
+    public function registrarUsuarioClinica(?array $data):Usuario{
+        try{
+            // Crear clínica sin activar plan aún
+            $clinica = Clinicas::create([
+                'nombre' => $data['clinica'],
+                'telefono' =>  $data['telefono'],
+            ]);
 
-    //          // Crear dirección
-    //         $clinica->direccion()->create([
-    //             'calle' => $data['direccion']['calle'],
-    //             'ciudad' => $data['direccion']['ciudad'],
-    //             'localidad' => $data['direccion']['localidad'],
-    //         ]);
+             // Crear dirección
+            $clinica->direccion()->create([
+                'calle' => $data['direccion']['calle'],
+                'ciudad' => $data['direccion']['ciudad'],
+                'localidad' => $data['direccion']['localidad'],
+            ]);
              
+            // Crear usuario
+            $usuario = Usuario::create([
+                'clinica_id' => $clinica->id,
+                'correo' => $data['correo'],
+                'password' => Hash::make($data['password']),
+                'status_id' => 5, // Se activará después del pago
+            ]);
 
-    //         // Crear usuario
-    //         $usuario = Usuario::create([
-    //             'clinica_id' => $clinica->id,
-    //             'correo' => $data['correo'],
-    //             'password' => Hash::make($data['password']),
-    //             'status_id' => 5, // Se activará después del pago
-    //         ]);
+            $usuario->sendEmailVerificationNotification();
 
-    //         $usuario->sendEmailVerificationNotification();
+            return $usuario;
 
-    //         return $usuario;
+        }catch(Exception $e){
+            throw $e;
+        }
+    }
 
-    //     }catch(Exception $e){
-    //         throw $e;
-    //     }
-    // }
+    public function store_adminMedico(array $request,$usuario_id){
+        try{
+            $datos=$this->DatosUsuario($usuario_id);
+
+            if (!$datos) {
+                throw new Exception("No se encontraron datos del usuario.");
+            }
+            
+            // Validación de los campos de entrada
+            if( !empty($request['profesion']) ){
+                $profesion = Especialidad::create([
+                    'clinica_id' => $datos['clinica_id'],
+                    'descripcion' => $request['profesion'],
+                    'status_id' => 1
+                ])->id;
+            }else{
+                if (empty($request['especialidad'])) {
+                    throw new Exception("Debe proporcionar 'profesion' o 'especialidad'.");
+                }
+                $profesion=$request['especialidad'];
+            }
+           
+            $personal=Personal::create([
+                'nombre' => $request['nombre'],
+                'apellido_paterno' => $request['apellido_paterno'],
+                'apellido_materno' => $request['apellido_materno'],
+                'fecha_nacimiento' => $request['fecha_nacimiento'],
+                'especialidad_id' =>  $profesion ?? null,
+                'cedula_profesional' =>  null,
+                'telefono' => $datos['clinica']['telefono'],
+                'puesto_id' => 3,
+                'foto'=>null,
+                'usuario_id'=>$usuario_id,
+                // 'created_at'=>now(),
+                // 'updated_at'=>now()
+            ]);        
+
+             // Retorna los datos en formato JSON
+            return response()->json([
+                'success'=>true,
+            ]);
+
+        } catch (Exception $e) {
+            // Manejo de errores: retorna mensaje descriptivo con el detalle de la excepción.
+            return response()->json([
+                'success' => false,
+                'message' => 'Ocurrió un error al actualizar el usuario',
+                'error' => $e->getMessage(),
+            ], 500);   
+
+        }
+    
+    }
     // public function guardarFoto($file, $ruta,$oldphoto): string
     // {
     //   try{

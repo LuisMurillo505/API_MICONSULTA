@@ -3,12 +3,36 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ClinicaPanel\AdminController;
 use App\Http\Controllers\ClinicaPanel\UsuariosController;
+use App\Http\Controllers\ClinicaPanel\NotificacionController;
 use App\Http\Controllers\ClinicaPanel\MedicoController;
 use App\Http\Controllers\ClinicaPanel\RecepcionController;
 use App\Http\Controllers\ClinicaPanel\LoginController;
+use App\Http\Controllers\ClinicaPanel\SuscripcionController;
+use Illuminate\Foundation\Auth\EmailVerificationRequest;
 
 //login
 Route::middleware('api.key')->post('/login', [LoginController::class, 'login']);
+//register
+Route::middleware('api.key')->post('/register', [SuscripcionController::class, 'register']);
+
+
+//verificar correo
+Route::get('/email/verify/{id}/{hash}', function (Illuminate\Http\Request $request) {
+
+    $user = \App\Models\User::findOrFail($request->route('id'));
+
+    if (!$user->hasVerifiedEmail()) {
+        $user->markEmailAsVerified();
+    }
+
+    return redirect(config('app.frontend_url') . '/email/verificado');
+
+})->middleware('signed')->name('verification.verify');
+
+Route::get('/email/verify', function () {
+    // return view('verify-email');
+})->name('verification.notice');
+
 //admin
 Route::middleware('api.key')->get('/index/{usuario_id}', [AdminController::class, 'index']);
 //perfil

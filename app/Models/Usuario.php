@@ -81,10 +81,10 @@ class Usuario extends Authenticatable implements MustVerifyEmail
         $this->attributes['correo'] = $value;
     }
 
-    // public function sendEmailVerificationNotification()
-    // {
-    //     $this->notify(new CustomVerifyEmail);
-    // }
+    public function sendEmailVerificationNotification()
+    {
+        $this->notify(new CustomVerifyEmail);
+    }
     
 
     

@@ -126,4 +126,10 @@ return [
     //api key de la api
     'api_key' => env('API_KEY'),
 
+    
+
+    'frontend_url' => env('FRONTEND_URL'),
+
+    
+
 ];

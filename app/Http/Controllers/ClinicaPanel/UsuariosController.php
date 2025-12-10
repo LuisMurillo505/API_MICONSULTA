@@ -32,6 +32,7 @@ class UsuariosController extends Controller
         $this->planService = $planServices;
     }
 
+    
     public function store(Request $request){
         try{
             

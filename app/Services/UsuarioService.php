@@ -190,8 +190,6 @@ class UsuarioService
                 'puesto_id' => 3,
                 'foto'=>null,
                 'usuario_id'=>$usuario_id,
-                // 'created_at'=>now(),
-                // 'updated_at'=>now()
             ]);        
 
              // Retorna los datos en formato JSON
@@ -242,33 +240,33 @@ class UsuarioService
         
     // }
 
-    // public function disponibilidad(?array $dias, int $personal_id):void{
-    //     try{
+    public function disponibilidad(?array $dias, int $personal_id):void{
+        try{
 
-    //         Disponibilidad::where('personal_id', $personal_id)->delete();
+            Disponibilidad::where('personal_id', $personal_id)->delete();
 
-    //          foreach($dias as $dia => $datos){
-    //             if(isset($datos['activo']) && !empty($datos['hora_inicio']) && !empty($datos['hora_fin'])){
-    //                 $hora_inicio = Carbon::parse($datos['hora_inicio']);
-    //                 $hora_fin = Carbon::parse($datos['hora_fin']);
+             foreach($dias as $dia => $datos){
+                if(isset($datos['activo']) && !empty($datos['hora_inicio']) && !empty($datos['hora_fin'])){
+                    $hora_inicio = Carbon::parse($datos['hora_inicio']);
+                    $hora_fin = Carbon::parse($datos['hora_fin']);
 
-    //                 if ($hora_inicio->gte($hora_fin)) {
-    //                     $personal=Personal::find($personal_id);
-    //                     $personal->usuario->delete();
-    //                     throw new Exception("Error en el día $dia: la hora de inicio no puede ser mayor o igual a la hora de fin.");
-    //                 }
-    //                     Disponibilidad::create([
-    //                     'personal_id' => $personal_id,
-    //                     'dia' => $dia,
-    //                     'hora_inicio' => $datos['hora_inicio'],
-    //                     'hora_fin' => $datos['hora_fin'],
-    //                 ]);
-    //             }
-    //         }
-    //     }catch(Exception $e){
-    //         throw $e;
-    //     }
-    // }
+                    if ($hora_inicio->gte($hora_fin)) {
+                        $personal=Personal::find($personal_id);
+                        $personal->usuario->delete();
+                        throw new Exception("Error en el día $dia: la hora de inicio no puede ser mayor o igual a la hora de fin.");
+                    }
+                        Disponibilidad::create([
+                        'personal_id' => $personal_id,
+                        'dia' => $dia,
+                        'hora_inicio' => $datos['hora_inicio'],
+                        'hora_fin' => $datos['hora_fin'],
+                    ]);
+                }
+            }
+        }catch(Exception $e){
+            throw $e;
+        }
+    }
 
      public function update_disponibilidad(?array $dias, int $personal_id):void{
         try{

@@ -4,8 +4,54 @@ namespace App\Services;
 
 use App\Models\Clinicas;
 use App\Models\ArchivosPaciente;
+use App\Models\Personal;
+use App\Models\Pacientes;
 use Exception;
 class PlanService{
+
+    public function puedeCrearUsuario($clinica_id){
+        try{
+            $usuariosPermitidos=Clinicas::with(['suscripcion.plan.funciones_planes' => function ($query) {
+                $query->where('funcion_id', 2);
+            }])->where('id',$clinica_id)
+            ->whereHas('suscripcion.plan.funciones_planes',function($q) {
+                $q->where('funcion_id',2);
+            })->first();
+
+            $permitidos=$usuariosPermitidos->suscripcion->plan->funciones_planes->cantidad ?? null;
+
+            $conteoUsuarios=Personal::whereHas('usuario',function($q) use($clinica_id){
+                $q->where('clinica_id',$clinica_id)
+                    ->where('status_id',1);
+            })->count();
+
+            return is_null($permitidos) || $permitidos>$conteoUsuarios;
+
+        }catch(Exception $e){
+            throw $e;
+        }
+    }
+
+    public function puedeCrearPaciente($clinica_id){
+        try{
+            $pacientesPermitidos=Clinicas::with(['suscripcion.plan.funciones_planes' => function ($query) {
+                $query->where('funcion_id', 3);
+            }])->where('id',$clinica_id)
+            ->whereHas('suscripcion.plan.funciones_planes',function($q) {
+                $q->where('funcion_id',3);
+            })->first();
+
+            //conteo pacientes por clinica
+            $conteoPacientes=Pacientes::where('clinica_id',$clinica_id)->count();
+
+            $limite = $pacientesPermitidos->suscripcion->plan->funciones_planes->cantidad ?? null;
+
+           return is_null($limite) || $limite > $conteoPacientes;
+
+        }catch(Exception $e){
+            throw $e;
+        }
+    }
 /**
  * Verifica si una clínica puede subir más archivos para un paciente según su plan actual.
  *

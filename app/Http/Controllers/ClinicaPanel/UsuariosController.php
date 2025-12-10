@@ -32,88 +32,94 @@ class UsuariosController extends Controller
         $this->planService = $planServices;
     }
 
-    // public function store2(UsuarioRequest $request){
-    //     try{
-    //         // $user=auth()->user();
-    //         // $clinica=$user->clinicas->id;
-    //         // $nombre_clinica=$user->clinicas->nombre;
+    public function store(Request $request){
+        try{
+            
+            $datos=$this->usuarioService->DatosUsuario($request->usuario_id);
 
-    //         $datos=$this->usuarioService->DatosUsuario();
+            if($request->password!=$request->confirm_password){
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Contaseña no coinciden',
+                    'error'=> 'password_incorrecta'
+                ], 404);        
+            }
 
-    //         // Validación de los campos de entrada
+            $check_usuario=Usuario::where('correo','=',$request->correo)->first();
 
-    //         if($request->password!=$request->confirm_password){
-    //             return back()->withInput()->with('error', 'Las contraseñas no coinciden');        
-    //         }
+            if($check_usuario){
+                return response()->json([
+                        'success' => false,
+                        'message' => 'Correo ya existe',
+                        'error'=> 'usuario_yaExiste'
+                    ], 404); 
+                }
 
-    //         $check_usuario=Usuario::where('correo','=',$request->correo)->first();
+            if(!$this->planService->puedeCrearUsuario($datos['clinica_id'])){
+               return response()->json([
+                    'success' => false,
+                    'message' => 'Limite de usuarios alcanzados',
+                    'error'=> 'LIMITE_ALCANZADO'
+                ], 404); 
+            }   
 
-    //         if($check_usuario){
-    //             return back()->withInput()->with('error', 'Correo ya existe');
-    //         }
+            $usuario=Usuario::create([
+                'clinica_id'=>$datos['clinica_id'],
+                'correo' => $request->correo,
+                'password' => Hash::make($request->password),  
+                'status_id'=>1,
+                'created_at'=>now(),
+                'update_at'=>now()
+            ]);
 
+            $personal=Personal::create([
+                'nombre' => $request->nombre,
+                'apellido_paterno' => $request->apellido_paterno,
+                'apellido_materno' => $request->apellido_materno,
+                'fecha_nacimiento' => $request->fecha_nacimiento,
+                'especialidad_id' => $request->especialidad,
+                'cedula_profesional' => $request->cedula_profesional,
+                'telefono' => $request->telefono,
+                'puesto_id' => $request->puesto,
+                'foto'=>$request->foto ?? null,
+                'usuario_id'=>$usuario->id,
+                'created_at'=>now(),
+                'updated_at'=>now()
+            ]);
 
-    //         if(!$this->planService->puedeCrearUsuario($datos['clinica_id'])){
-    //             return back()->with('error','Limite de usuarios alcanzado');
-    //         }   
+            //guardar disponibilidad si se proporciona
+            if($request->input('dias')){
+                $this->usuarioService->disponibilidad($request->input('dias'),$personal->id);
+            }
 
-    //         $foto='';
-    //         //guardar foto
-    //         if($request->hasFile('photo')){
-    //             $foto=$this->usuarioService->guardarFoto($request->File('photo'),$datos['nombre_clinica'],null);
-    //         }
+            // Retornar respuesta JSON
+            return response()->json([
+                'success' => true,
+                'message' => 'Usuario Creado con Exito.',
+                'data' => [
+                    'usuario' => $usuario,
+                    'personal'=>$personal
+                ],
+            ]);
 
-    //         $usuario=Usuario::create([
-    //             'clinica_id'=>$datos['clinica_id'],
-    //             'correo' => $request->correo,
-    //             'password' => Hash::make($request->password),  
-    //             'status_id'=>1,
-    //             'created_at'=>now(),
-    //             'update_at'=>now()
-    //         ]);
+        }catch (Exception $e) {
+            // Manejo de errores: retorna mensaje descriptivo con el detalle de la excepción.
+            // log::error($e->getMessage());   
+            return response()->json([
+                'success' => false,
+                'message' => 'Ocurrió un error al actualizar el usuario',
+                'error' => $e->getMessage(),
+            ], 500);   
 
-    //         $usuario_id=$usuario->id;
-
-    //         $personal=Personal::create([
-    //             'nombre' => $request->nombre,
-    //             'apellido_paterno' => $request->apellido_paterno,
-    //             'apellido_materno' => $request->apellido_materno,
-    //             'fecha_nacimiento' => $request->fecha_nacimiento,
-    //             'especialidad_id' => $request->especialidad,
-    //             'cedula_profesional' => $request->cedula_profesional,
-    //             'telefono' => $request->telefono,
-    //             'puesto_id' => $request->puesto,
-    //             'foto'=>$foto,
-    //             'usuario_id'=>$usuario_id,
-    //             'created_at'=>now(),
-    //             'updated_at'=>now()
-    //         ]);
-
-    //         //guardar disponibilidad si se proporciona
-    //         if($request->input('dias')){
-    //             $this->usuarioService->disponibilidad($request->input('dias'),$personal->id);
-    //         }
-
-    //         return redirect(session('previous_url', route('usuarios.index')))
-    //         ->withInput()->with('success','Usuario creado correctamente')
-    //             ->with('medico_seleccionado', $personal->id);
-
-           
-
-    //     }catch(Exception $e){
-    //        return back()->withInput()->with('error', $e->getMessage());
-    //     }
+        }
     
-    // }   
+    }   
 
     public function store_adminMedico(Request $request,$usuario_id){
         try{
     
 
             $datos=$this->usuarioService->DatosUsuario($usuario_id);
-
-            // Log::info($request->all());
-            // Validación de los campos de entrada
  
             if($request->profesion){
                 $profesion=Especialidad::create([
@@ -164,11 +170,11 @@ class UsuariosController extends Controller
      * Actualizar los datos de un usuario
      */
     
-     public function update(Request $request, $usuario_id,$foto){
+     public function update(Request $request){
         try {
         
             // Buscar el registro de 'personal' por su ID
-            $personal = Personal::where('usuario_id',$usuario_id)->first();
+            $personal = Personal::where('usuario_id',$request->usuario_id)->first();
     
             // Verificar si el registro 'personal' fue encontrado
             if (!$personal) {
@@ -179,17 +185,13 @@ class UsuariosController extends Controller
                     'error' => 'usuario no existe',
                 ], 500);               
              }
-             
-             if ($foto=='null'){
-                $foto=null;
-             }
         
               // Actualizar los datos del usuario
                 $personal->update([
                     'especialidad_id' => $request->especialidad,
                     'cedula_profesional' => $request->cedula_profesional,
                     'telefono' => $request->telefono,
-                    'foto' => $foto ?? null, // Foto actualizada si fue subida
+                    'foto' => $request->foto ?? null, // Foto actualizada si fue subida
                     'updated_at' => now()
                 ]);
 
@@ -213,92 +215,105 @@ class UsuariosController extends Controller
         }
     }
 
-    // public function update_clinica(Request $request){
-    //     try{
-    //         $validated=$request->validate([
-    //             'nombre_clinica'=>'required|string',
-    //             'telefono_clinica'=>'numeric',
-    //             'direccion.calle'=>'nullable|string',
-    //             'direccion.localidad'=>'nullable|string',
-    //             'direccion.ciudad'=>'nullable|string',
-    //             'rfc'=>'nullable|string',
-    //         ]);
+    public function update_clinica(Request $request){
+        try{
+            $validated=$request->validate([
+                'nombre_clinica'=>'required|string',
+                'telefono_clinica'=>'numeric',
+                'direccion.calle'=>'nullable|string',
+                'direccion.localidad'=>'nullable|string',
+                'direccion.ciudad'=>'nullable|string',
+                'rfc'=>'nullable|string',
+            ]);
 
-    //         $datos=$this->usuarioService->DatosUsuario();
+            $datos=$this->usuarioService->DatosUsuario($request->usuario_id);
 
-    //         $clinica=Clinicas::find($datos['clinica_id']);
+            $clinica=Clinicas::find($datos['clinica_id']);
 
-    //         // Verificar si se ha subido una nueva foto
-    //         if ($request->hasFile('photo')) {
-    //             // Variable para almacenar el nombre de la foto
-    //             $foto = $clinica->foto ?? null;
-    //             $foto=$this->usuarioService->guardarFotoClinica($request->File('photo'),$datos['nombre_clinica'],$foto);
-    //         }
+            $clinica->update([
+                'nombre'=>$validated['nombre_clinica'],
+                'telefono'=>$validated['telefono_clinica'],
+                'RFC'=>$validated['rfc'] ?? null,
+                'foto'=>$request->foto ?? null,
+            ]);
 
-    //         $clinica->update([
-    //             'nombre'=>$validated['nombre_clinica'],
-    //             'telefono'=>$validated['telefono_clinica'],
-    //             'RFC'=>$validated['rfc'] ?? null,
-    //             'foto'=>$foto ?? null,
-    //         ]);
+            $clinica->direccion()->update([
+                'calle' =>$validated['direccion']['calle'],
+                'localidad' =>$validated['direccion']['localidad'],
+                'ciudad' =>$validated['direccion']['ciudad'],
+            ]);
 
-    //         $clinica->direccion()->update([
-    //             'calle' =>$validated['direccion']['calle'],
-    //             'localidad' =>$validated['direccion']['localidad'],
-    //             'ciudad' =>$validated['direccion']['ciudad'],
-    //         ]);
+            return response()->json([
+                'success'=>true,
+            ]);
 
-    //         return back()->with('success', 'Clinica actualizada con éxito');
-
-
-    //     }catch (Exception $e) {
-    //         return back()->with('error', 'Error: ' . $e->getMessage());
-    //     }
-    // }
+        }catch (Exception $e) {
+            // Manejo de errores: retorna mensaje descriptivo con el detalle de la excepción.
+            return response()->json([
+                'success' => false,
+                'message' => 'Ocurrió un error al actualizar el usuario',
+                'error' => $e->getMessage(),
+            ], 500);         
+        }
+    }
  
     /**
      * Cambiar estado de usuario entre Activo/Inactivo
      */
-    // public function update_estado($user_id){
-    //     try{
-    //         $usuario=Usuario::find($user_id);
-    //         $clinica=$usuario->clinicas->id;
+    public function update_status($user_id){
+        try{
+            $usuario=Usuario::find($user_id);
+            $clinica=$usuario->clinicas->id;
 
-    //         //checar usuarios permitidos
-    //         $usuariosPermitidos=Clinicas::with(['suscripcion.plan.funciones_planes' => function ($query) {
-    //             $query->where('descripcion', 'usuarios');
-    //         }])->where('id',$clinica)
-    //         ->whereHas('suscripcion.plan.funciones_planes',function($q) {
-    //             $q->where('descripcion','usuarios');
-    //         })->first();
+            //checar usuarios permitidos
+            $usuariosPermitidos=Clinicas::with(['suscripcion.plan.funciones_planes.funcion' => function ($query) {
+                $query->where('nombre', 'usuarios');
+            }])->where('id',$clinica)
+            ->whereHas('suscripcion.plan.funciones_planes.funcion',function($q) {
+                $q->where('nombre','usuarios');
+            })->first();
 
-    //         $permitidos=$usuariosPermitidos->suscripcion->plan->funciones_planes->cantidad;
+            $permitidos=$usuariosPermitidos->suscripcion->plan->funciones_planes->cantidad;
 
-    //         $conteoUsuarios=Personal::whereHas('usuario',function($q) use($clinica){
-    //             $q->where('clinica_id',$clinica)
-    //                 ->where('status_id',1);
-    //         })->count();
+            $conteoUsuarios=Personal::whereHas('usuario',function($q) use($clinica){
+                $q->where('clinica_id',$clinica)
+                    ->where('status_id',1);
+            })->count();
 
-    //         if($usuario->status_id==1){
+            if($usuario->status_id==1){
 
-    //             $usuario->update([
-    //                 'status_id'=>2
-    //             ]);
-    //             return back()->with('success', 'Usuario actualizado con éxito');
-    //         }else{
-    //             if($permitidos<=$conteoUsuarios){
-    //                 return back()->with('error', 'Limite alcanzado');
-    //             }
-    //             $usuario->update([
-    //                 'status_id'=>1
-    //             ]);
-    //             return back()->with('success', 'Usuario actualizado con éxito');
-    //         } 
+                $usuario->update([
+                    'status_id'=>2
+                ]);
+                return response()->json([
+                    'success'=>true,
+                    'message'=>'Usuario actualizado correctamente'
+                ]);
+            }else{
+                if($permitidos<=$conteoUsuarios){
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Limite Alcanzado',
+                    ], 404); 
+                }
+                $usuario->update([
+                    'status_id'=>1
+                ]);
+                return response()->json([
+                    'success'=>true,
+                    'message'=>'Usuario actualizado correctamente'
+                ]);            
+            } 
            
-    //     }catch(Exception $e){
-    //         return back()->with('error', 'Error: ' . $e->getMessage());
-    //     }
-    // }   
+        }catch(Exception $e){
+            // Manejo de errores: retorna mensaje descriptivo con el detalle de la excepción.
+            return response()->json([
+                'success' => false,
+                'message' => 'Ocurrió un error al actualizar el usuario',
+                'error' => $e->getMessage(),
+            ], 500);  
+        }
+    }   
 
     /**
      * Cambiar contraseña de usuario
@@ -319,45 +334,66 @@ class UsuariosController extends Controller
                 $usuario->update([
                     'password'=>hash::make($validated['nueva_contraseña'])
                 ]);
-                return back()->with('success','Contraseña actualizada con exito');
-
+                 return response()->json([
+                    'success'=>true,
+                    'message'=>'Contraseña actualizada con exito'
+                ]); 
             }else{
-                return back()->with('error','contraseña actual incorrecta');
+                return response()->json([
+                    'success'=>false,
+                    'message'=>'Contraseña actual incorrecta'
+                ]);             
             }
           
 
         }catch(Exception $e){
-            return back()->with('error', 'Error: ' . $e->getMessage());
+            // Manejo de errores: retorna mensaje descriptivo con el detalle de la excepción.
+            return response()->json([
+                'success' => false,
+                'message' => 'Ocurrió un error al actualizar el usuario',
+                'error' => $e->getMessage(),
+            ], 500);         
         }
     }
 
-    // public function Restablecerpassword(Request $request){
+    public function Restablecerpassword(Request $request){
 
-    //     try{
-    //         $validated=$request->validate([
-    //             'email'=>'required|email'
-    //         ]);
+        try{
+            $validated=$request->validate([
+                'email'=>'required|email'
+            ]);
             
-    //        $usuario=Usuario::where('correo',$validated['email'])->first();
+           $usuario=Usuario::where('correo',$validated['email'])->first();
 
-    //        if(!$usuario){
-    //             return back()->with('error', 'Correo no registrado');
-    //        }
+           if(!$usuario){
+                return response()->json([
+                    'success'=>false,
+                    'message'=>'Correo no registrado'
+                ]); 
+           }
 
-    //        $temporalpassword=Str::random(10);
+           $temporalpassword=Str::random(10);
 
-    //        $usuario->update([
-    //          'password'=> Hash::make($temporalpassword)
-    //        ]);
+           $usuario->update([
+             'password'=> Hash::make($temporalpassword)
+           ]);
 
-    //         Mail::to($usuario->correo)->send(new \App\Mail\TemporaryPasswordMail($usuario, $temporalpassword));
+            Mail::to($usuario->correo)->send(new \App\Mail\TemporaryPasswordMail($usuario, $temporalpassword));
 
-    //        return back()->with('success', 'Se envió una contraseña temporal a tu correo.');
+           return response()->json([
+                'success'=>true,
+                'message'=>'Se envio una contraseña temporal a tu correo'
+            ]); 
 
-    //     }catch(Exception $e){
-    //         return back()->with('error', 'Error: ' . $e->getMessage());
-    //     }
-    // }
+        }catch(Exception $e){
+            // Manejo de errores: retorna mensaje descriptivo con el detalle de la excepción.
+            return response()->json([
+                'success' => false,
+                'message' => 'Ocurrió un error al actualizar el usuario',
+                'error' => $e->getMessage(),
+            ], 500);  
+        }
+    }
 
     // public function actualizar_plan(Request $request){
     //     try{

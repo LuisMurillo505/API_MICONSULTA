@@ -33,7 +33,6 @@ class SuscripcionController extends Controller
     public function register(Request $request)
     {
         try {
-            //    log::info($request->all());
             // Validar los datos del formulario
             $validated = $request->validate([
                 'clinica' => 'required|string',
@@ -95,7 +94,6 @@ class SuscripcionController extends Controller
                 ]);
             }
 
-            log::info(config('services.stripe.secret'));
             //crear cliente en stripe
             $stripeCustomer=$this->suscripcionService->crearClienteStripe($usuario);
 

@@ -125,6 +125,27 @@ class UsuarioService
         return compact('total_pasos', 'total_pasosF', 'pasosT', 'clave_paso', 'paso_completo', 'PasoGuia2');
     }
 
+/**
+ * Registra una nueva clínica junto con su dirección y su usuario principal.
+ *
+ * Proceso:
+ * - Crea la clínica sin asignar plan aún.
+ * - Crea la dirección asociada a la clínica.
+ * - Crea el usuario administrador de la clínica.
+ * - Envía el correo de verificación al usuario.
+ *
+ * Importante:
+ * - El usuario se crea con `status_id = 5`, ya que se activará posteriormente
+ *   cuando realice el pago correspondiente al plan.
+ *
+ * @param array|null $data
+ *    
+ * @return \App\Models\Usuario
+ *         Retorna el usuario creado (usuario administrador de la clínica).
+ *
+ * @throws \Exception
+ *         Lanza nuevamente cualquier excepción ocurrida durante el proceso.
+ */
     public function registrarUsuarioClinica(?array $data):Usuario{
         try{
             // Crear clínica sin activar plan aún
@@ -140,7 +161,7 @@ class UsuarioService
                 'localidad' => $data['direccion']['localidad'],
             ]);
              
-            // Crear usuario
+            // Crear usuario principal
             $usuario = Usuario::create([
                 'clinica_id' => $clinica->id,
                 'correo' => $data['correo'],
@@ -148,6 +169,7 @@ class UsuarioService
                 'status_id' => 5, // Se activará después del pago
             ]);
 
+            // Enviar correo de verificación
             $usuario->sendEmailVerificationNotification();
 
             return $usuario;
@@ -157,16 +179,39 @@ class UsuarioService
         }
     }
 
+    /**
+ * Registra un médico asociado a una clínica según el usuario proporcionado.
+ *
+ * Proceso:
+ * - Obtiene los datos del usuario (incluyendo clínica).
+ * - Si se recibe el campo "profesion", se crea una nueva especialidad.
+ * - Si no, se valida que exista el campo "especialidad" y se utiliza.
+ * - Crea el registro del personal médico con los datos proporcionados.
+ * - Retorna un JSON confirmando el éxito.
+ *
+ * @param array $request
+ *
+ * @param int $usuario_id
+ *        ID del usuario que está realizando la operación y cuya clínica se usará.
+ *
+ * @return \Illuminate\Http\JsonResponse
+ *         Respuesta JSON indicando si el registro fue exitoso o detallando el error.
+ *
+ * @throws \Exception
+ *         Si faltan datos esenciales o ocurre un error en el proceso.
+ */
     public function store_adminMedico(array $request,$usuario_id){
         try{
+            // Obtener datos del usuario
             $datos=$this->DatosUsuario($usuario_id);
 
             if (!$datos) {
                 throw new Exception("No se encontraron datos del usuario.");
             }
             
-            // Validación de los campos de entrada
+             // Validar profesión o especialidad
             if( !empty($request['profesion']) ){
+                // Crear nueva especialidad
                 $profesion = Especialidad::create([
                     'clinica_id' => $datos['clinica_id'],
                     'descripcion' => $request['profesion'],
@@ -179,6 +224,7 @@ class UsuarioService
                 $profesion=$request['especialidad'];
             }
            
+            // Crear personal médico
             $personal=Personal::create([
                 'nombre' => $request['nombre'],
                 'apellido_paterno' => $request['apellido_paterno'],
@@ -240,9 +286,32 @@ class UsuarioService
         
     // }
 
+/**
+ * Registra la disponibilidad semanal de un médico (personal) reemplazando cualquier disponibilidad previa.
+ *
+ * Proceso:
+ * - Elimina todas las disponibilidades existentes del personal.
+ * - Recorre el arreglo de días recibido.
+ * - Por cada día marcado como "activo" y con horas válidas:
+ *      - Valida que la hora de inicio sea menor a la hora de fin.
+ *      - Si la validación falla, elimina el usuario asociado y lanza una excepción.
+ *      - Si es válido, crea el registro de disponibilidad.
+ *
+ * @param array|null $dias
+ *
+ * @param int $personal_id
+ *        ID del personal al cual se le asignará la disponibilidad.
+ *
+ * @return void
+ *         No retorna valor; lanza excepción en caso de error.
+ *
+ * @throws \Exception
+ *         Si las horas son inválidas o ocurre cualquier otro problema.
+ */
     public function disponibilidad(?array $dias, int $personal_id):void{
         try{
 
+            // Eliminar disponibilidad actual
             Disponibilidad::where('personal_id', $personal_id)->delete();
 
              foreach($dias as $dia => $datos){
@@ -250,11 +319,13 @@ class UsuarioService
                     $hora_inicio = Carbon::parse($datos['hora_inicio']);
                     $hora_fin = Carbon::parse($datos['hora_fin']);
 
+                    // Validación de horas
                     if ($hora_inicio->gte($hora_fin)) {
                         $personal=Personal::find($personal_id);
                         $personal->usuario->delete();
                         throw new Exception("Error en el día $dia: la hora de inicio no puede ser mayor o igual a la hora de fin.");
                     }
+                        // Crear disponibilidad válida
                         Disponibilidad::create([
                         'personal_id' => $personal_id,
                         'dia' => $dia,
@@ -268,9 +339,10 @@ class UsuarioService
         }
     }
 
-     public function update_disponibilidad(?array $dias, int $personal_id):void{
+    public function update_disponibilidad(?array $dias, int $personal_id):void{
         try{
 
+            // Eliminar disponibilidad actual
             Disponibilidad::where('personal_id', $personal_id)->delete();
 
              foreach($dias as $dia => $datos){
@@ -278,9 +350,11 @@ class UsuarioService
                     $hora_inicio = Carbon::parse($datos['hora_inicio']);
                     $hora_fin = Carbon::parse($datos['hora_fin']);
 
+                    // Validación de horas
                     if ($hora_inicio->gte($hora_fin)) {
                         throw new Exception("Error en el día $dia: la hora de inicio no puede ser mayor o igual a la hora de fin.");
                     }
+                        // Crear disponibilidad válida
                         Disponibilidad::create([
                         'personal_id' => $personal_id,
                         'dia' => $dia,

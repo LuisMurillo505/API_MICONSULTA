@@ -24,7 +24,6 @@ class PacienteRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'photo' => 'image|mimes:jpeg,png,jpg,gif,svg',
             'estado_id'=>'integer',
             'nombre' => 'string',
             'apellido_paterno' => 'string',

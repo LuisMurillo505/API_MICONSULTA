@@ -22,7 +22,6 @@ class UsuarioRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'photo' => 'image|mimes:jpeg,png,jpg,gif,svg|max:2048',
                 'correo' => 'email:rfc,dns',
                 'password' => 'string',
                 'confirm_password'=>'string|same:password',

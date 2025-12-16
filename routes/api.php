@@ -56,6 +56,13 @@ Route::middleware('api.key')->get('/pacientes/{usuario_id}', [AdminController::c
 Route::middleware('api.key')->get('/crear-pacientes', [AdminController::class, 'index_createpaciente']);
 Route::middleware('api.key')->get('/buscarPaciente/{usuario_id}', [AdminController::class, 'buscarPaciente']);
 Route::middleware('api.key')->post('/registrar-paciente', [PacientesController::class, 'store']);
+Route::middleware('api.key')->put('/actualizar-paciente', [PacientesController::class, 'update']);
+Route::middleware('api.key')->post('/historiaclinica-paciente', [PacientesController::class, 'historialClinico']);
+Route::middleware('api.key')->get('/observacion-paciente/{nota_id}', [PacientesController::class, 'deleteNote']);
+Route::middleware('api.key')->get('/descargar-expediente/{paciente_id}/{cita_id}', [PacientesController::class, 'DescargarExpediente']);
+Route::middleware('api.key')->post('/subirarchivos-paciente', [PacientesController::class, 'ArchivosPacientes']);
+Route::middleware('api.key')->get('/descargararchivos-paciente/{archivo_id}', [PacientesController::class, 'descargarArchivo']);
+Route::middleware('api.key')->get('/eliminararchivos-paciente/{archivo_id}', [PacientesController::class, 'destroy']);
 
 //servicios
 Route::middleware('api.key')->get('/servicios/{usuario_id}', [AdminController::class, 'index_servicios']);

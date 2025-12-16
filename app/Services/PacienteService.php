@@ -283,17 +283,42 @@ class PacienteService
       }
     }
 
-    public function ArchivosPacientes($archivo,$paciente,$clinica)
+    // public function ArchivosPacientes($nombre,$tipo,$tamano,$paciente,$clinica)
+    // {
+    //   try{
+        
+    //     // Subir a Google Cloud Storage
+    //     $path = "pacientes/{$clinica->nombre}/{$paciente->id} {$paciente->nombre}/" . $nombre;
+
+    //     // // Subir archivo al bucket
+    //     // $this->gcs->upload($archivo->getRealPath(), $path);
+        
+    //     // Guardar en BD
+    //     $registro = ArchivosPaciente::create([
+    //         'status_id'=>1,
+    //         'paciente_id' => $paciente->id,
+    //         'nombre' => $nombre,
+    //         'ruta' => $path,
+    //         'tipo' => $tipo,
+    //         'tamano' => $tamano,
+    //     ]);
+
+    //   }catch(Exception $e){
+    //     throw $e;
+    //   }
+    // }
+
+     public function ArchivosPacientes($archivo,$paciente,$clinica)
     {
       try{
         
         // Subir a Google Cloud Storage
-        $path = "pacientes/{$clinica->nombre}/{$paciente->id} {$paciente->nombre}/" . $archivo->getClientOriginalName();
+        $path = "pacientes/{$clinica['nombre']}/{$paciente['id']} {$paciente['nombre']}/" . $archivo->getClientOriginalName();
 
         // Subir archivo al bucket
         $this->gcs->upload($archivo->getRealPath(), $path);
         
-        // Guardar en BD
+        //Guardar en BD
         $registro = ArchivosPaciente::create([
             'status_id'=>1,
             'paciente_id' => $paciente->id,
@@ -304,8 +329,9 @@ class PacienteService
         ]);
 
       }catch(Exception $e){
-        throw $e;
+
       }
+    
     }
 
 }

@@ -6,6 +6,7 @@ use App\Models\Clinicas;
 use App\Models\ArchivosPaciente;
 use App\Models\Personal;
 use App\Models\Pacientes;
+use App\Models\Servicio;
 use Exception;
 class PlanService{
 
@@ -50,6 +51,27 @@ class PlanService{
 
         }catch(Exception $e){
             throw $e;
+        }
+    }
+
+    public function puedeCrearServicio($clinica_id){
+        try{
+            $serviciosPermitidos=Clinicas::with(['suscripcion.plan.funciones_planes' => function ($query) {
+                $query->where('funcion_id', 1);
+            }])->where('id',$clinica_id)
+            ->whereHas('suscripcion.plan.funciones_planes',function($q) {
+                $q->where('funcion_id',1);
+            })->first();
+
+            $permitidos=$serviciosPermitidos->suscripcion->plan->funciones_planes->cantidad ?? null;
+
+            $conteoServicios=Servicio::where('clinica_id',$clinica_id)
+                ->where('status_id',1)->count();
+
+            return is_null($permitidos) || $permitidos>$conteoServicios;
+
+        }catch(Exception $e){
+
         }
     }
 /**

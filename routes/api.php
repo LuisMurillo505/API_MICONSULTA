@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ClinicaPanel\AdminController;
 use App\Http\Controllers\ClinicaPanel\UsuariosController;
 use App\Http\Controllers\ClinicaPanel\PacientesController;
+use App\Http\Controllers\ClinicaPanel\ServiciosController;
 use App\Http\Controllers\ClinicaPanel\NotificacionController;
 use App\Http\Controllers\ClinicaPanel\MedicoController;
 use App\Http\Controllers\ClinicaPanel\RecepcionController;
@@ -66,6 +67,11 @@ Route::middleware('api.key')->get('/eliminararchivos-paciente/{archivo_id}', [Pa
 
 //servicios
 Route::middleware('api.key')->get('/servicios/{usuario_id}', [AdminController::class, 'index_servicios']);
+Route::middleware('api.key')->post('/crear-servicio', [ServiciosController::class, 'store']);
+Route::middleware('api.key')->put('/actualizar-servicio/{servicio_id}', [ServiciosController::class, 'update']);
+Route::middleware('api.key')->get('/eliminar-servicio/{servicio_id}', [ServiciosController::class, 'delete']);
+Route::middleware('api.key')->get('/reporte-servicios', [ServiciosController::class, 'descargarReporteServicios']);
+
 
 //profesiones
 Route::middleware('api.key')->get('/profesiones/{usuario_id}', [AdminController::class, 'index_profesiones']);

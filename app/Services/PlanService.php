@@ -7,6 +7,7 @@ use App\Models\ArchivosPaciente;
 use App\Models\Personal;
 use App\Models\Pacientes;
 use App\Models\Servicio;
+use App\Models\Citas;
 use Exception;
 class PlanService{
 
@@ -73,6 +74,28 @@ class PlanService{
         }catch(Exception $e){
 
         }
+    }
+
+    public function puedeCrearCita(int $clinica_id): bool
+    {
+        try{
+            $clinica = Clinicas::with(['suscripcion.plan.funciones_planes' => function ($q) {
+            $q->where('funcion_id', 4);
+            }])
+            ->where('id', $clinica_id)
+            ->first();
+
+            $limite = $clinica->suscripcion->plan->funciones_planes->cantidad;
+
+            $conteoCitas=citas::whereHas('personal.usuario',function($q) use($clinica_id){
+                    $q->where('clinica_id',$clinica_id);
+                })->count();
+
+            return is_null($limite) || $limite > $conteoCitas;
+        }catch(Exception $e){
+            throw $e;
+        }
+       
     }
 /**
  * Verifica si una clínica puede subir más archivos para un paciente según su plan actual.

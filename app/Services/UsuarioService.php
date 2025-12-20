@@ -369,50 +369,50 @@ class UsuarioService
     }
 
     // //Checa si el personal tiene disponibilidad en un dia especifico y en un rango de horas
-    // public function disponibilidad_dia(int $personal_id, Carbon $fecha, Carbon $hora_inicio, Carbon $hora_fin){
-    //     try{
-    //         $diaSemana=strtolower($fecha->locale('es')->dayName);
-    //         $disponibilidad=Disponibilidad::where('personal_id',$personal_id)
-    //                 ->where('dia',$diaSemana)->first();
+    public function disponibilidad_dia(int $personal_id, Carbon $fecha, Carbon $hora_inicio, Carbon $hora_fin){
+        try{
+            $diaSemana=strtolower($fecha->locale('es')->dayName);
+            $disponibilidad=Disponibilidad::where('personal_id',$personal_id)
+                    ->where('dia',$diaSemana)->first();
 
-    //         if (!$disponibilidad) return false;
+            if (!$disponibilidad) return false;
 
-    //         $disponibilidad_inicio = Carbon::createFromFormat('H:i:s', $disponibilidad->hora_inicio);
-    //         $disponibilidad_fin = Carbon::createFromFormat('H:i:s', $disponibilidad->hora_fin);
+            $disponibilidad_inicio = Carbon::createFromFormat('H:i:s', $disponibilidad->hora_inicio);
+            $disponibilidad_fin = Carbon::createFromFormat('H:i:s', $disponibilidad->hora_fin);
 
-    //         return $hora_inicio->gte($disponibilidad_inicio) && $hora_fin->lte($disponibilidad_fin);
+            return $hora_inicio->gte($disponibilidad_inicio) && $hora_fin->lte($disponibilidad_fin);
             
-    //     }catch(Exception $e){
-    //         throw $e;
-    //     }
-    // }
+        }catch(Exception $e){
+            throw $e;
+        }
+    }
 
 
     // //analiza si el personal no tiene otra cita agendada en una fecha y hora especifica
-    // public function personal_citas(?array $datos,$hora_inicio,$hora_fin):void{
-    //   // Checar disponibilidad del médico
-    //     $medico_citas = citas::where('personal_id', $datos['medico'])
-    //         ->where('status_id',1)
-    //         ->whereDate('fecha_cita', $datos['fecha'])
-    //         ->get();         
+    public function personal_citas(?array $datos,$hora_inicio,$hora_fin):void{
+      // Checar disponibilidad del médico
+        $medico_citas = citas::where('personal_id', $datos['medico'])
+            ->where('status_id',1)
+            ->whereDate('fecha_cita', $datos['fecha'])
+            ->get();         
 
-    //     $disponible = true;
+        $disponible = true;
 
-    //     foreach ($medico_citas as $cita) {
-    //         $cita_inicio = Carbon::createFromFormat('H:i:s', $cita->hora_inicio);
-    //         $cita_fin = Carbon::createFromFormat('H:i:s', $cita->hora_fin);
+        foreach ($medico_citas as $cita) {
+            $cita_inicio = Carbon::createFromFormat('H:i:s', $cita->hora_inicio);
+            $cita_fin = Carbon::createFromFormat('H:i:s', $cita->hora_fin);
 
-    //         if (
-    //             $hora_inicio->lt($cita_fin) && 
-    //             $hora_fin->gt($cita_inicio)
-    //         ) {
-    //             $disponible = false;
-    //             break;
-    //         }
-    //     }
+            if (
+                $hora_inicio->lt($cita_fin) && 
+                $hora_fin->gt($cita_inicio)
+            ) {
+                $disponible = false;
+                break;
+            }
+        }
 
-    //     if (!$disponible) {
-    //         throw new Exception("Medico no disponible en ese horario.");
-    //     }
-    // }
+        if (!$disponible) {
+            throw new Exception("Medico no disponible en ese horario.");
+        }
+    }
 }

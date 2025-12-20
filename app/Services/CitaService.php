@@ -15,6 +15,7 @@ use App\Models\Pacientes;
 use Illuminate\Support\Facades\Mail;
 use App\Models\Disponibilidad;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 
 class CitaService
@@ -22,17 +23,15 @@ class CitaService
     protected $notificacionService;
     protected $usuarioService;
     protected $googleService;
-    protected $whatsAppService;
     protected $planServices;
 
     public function __construct(NotificacionService $notificacionService, 
-        usuarioService $usuarioService,
+        usuarioService $usuarioService, GoogleService $googleService,
         PlanService $planServices)
     {
         $this->notificacionService = $notificacionService;
         $this->usuarioService = $usuarioService;
-        // $this->googleService = $googleService;
-        // $this->whatsAppService = $whatsappServices;
+        $this->googleService = $googleService;
         $this->planServices = $planServices;
     }
 
@@ -51,10 +50,10 @@ class CitaService
                 })->exists();
     }
 
-//    public function crearCitasRecurrentes(?array $data, Carbon $hora_inicio, Carbon $hora_fin, ?string $repetir, ?int $repeticiones ) :array{
+//     public function crearCitasRecurrentes(?array $data, Carbon $hora_inicio, Carbon $hora_fin, ?string $repetir, ?int $repeticiones,int $usuario_id ) :array{
+//         DB::beginTransaction();
 //         try{
-//             $datos=$this->usuarioService->DatosUsuario();
-//             $usuario=Usuario::find($datos['usuario_id']) ?? null;
+//             $datos=$this->usuarioService->DatosUsuario($usuario_id);
 
 //             $citasCreadas = [];
 //             $eventosCreados=[];
@@ -114,19 +113,9 @@ class CitaService
 //                 //medico de la cita
 //                 $medico=Personal::find($data['medico']);
 
-
-//                 // if($usuario->clinicas->suscripcion->plan_id==3){
-//                 //     $usuarioCreador=$this->googleService->usuarioCreador($cita,$usuario);
-//                 //     if($usuarioCreador['usuarioCreador']){
-//                 //         $eventU=$this->googleService->crearEventoGoogleCalendar($cita,$usuarioCreador,
-//                 //             Carbon::parse($fechaActual)->toDateString(),$hora_inicio_actual->format('H:i'),$hora_fin_actual->format('H:i'));
-//                 //         $eventosCreados[]=$eventU->id;
-//                 //     }
-//                 // }
-
 //                 $googleCalendar=$this->planServices->puedeUsarGoogleCalendar($datos['clinica_id']);
 //                 if($googleCalendar){
-//                     $usuarioCreador=$this->googleService->usuarioCreador($cita,$datos['clinica_id']);
+//                     $usuarioCreador=$this->googleService->usuarioCreador($data['medico'],$datos['clinica_id']);
 //                     if($usuarioCreador['usuarioCreador']){
 //                         $eventU=$this->googleService->crearEventoGoogleCalendar($cita,$usuarioCreador,
 //                             Carbon::parse($fechaActual)->toDateString(),$hora_inicio_actual->format('H:i'),$hora_fin_actual->format('H:i'));
@@ -138,13 +127,132 @@ class CitaService
 //                 $this->notificacionService->crear_cita($data['medico'], $cita->id);
         
 //             }
+
+//             DB::commit();
+
 //             return $citasCreadas;
 
 //         }catch (Exception $e) {
+//             DB::rollBack();
 //             throw $e;
 //         }
 //    }
 
+    public function crearCitasRecurrentes(?array $data, Carbon $hora_inicio, Carbon $hora_fin, ?string $repetir, ?int $repeticiones,int $usuario_id ) :array{
+        DB::beginTransaction();
+        try{
+            $datos=$this->usuarioService->DatosUsuario($usuario_id);
+            $citasCreadas = [];
+            $eventosCreados=[];
+            $repeticiones = max(1, (int) $repeticiones);
+            $fechaInicial = Carbon::parse($data['fecha']);
+
+            // Validar disponibilidad del médico una sola vez si existe
+            $disponibilidadMedico=Disponibilidad::where('personal_id',$data['medico'])->get();
+
+            // Obtener duración del servicio
+            $duracionServicio = Servicio::find($data['servicio'])->duracion;
+
+             // Verificar si puede usar Google Calendar
+            $puedeUsargoogleCalendar=$this->planServices->puedeUsarGoogleCalendar($datos['clinica_id']);
+            $usuarioCreador=null;
+
+            if ($puedeUsargoogleCalendar) {
+                $usuarioCreador = $this->googleService->usuarioCreador($data['medico'], $datos['clinica_id']);
+            }
+          
+            for ($i = 0; $i < $repeticiones; $i++) {
+
+               $fechaActual = $this->calcularFechaRecurrente($fechaInicial, $repetir, $i);
+
+                if (!$fechaActual) continue;
+
+                // Validar disponibilidad del médico
+                if($disponibilidadMedico->isNotEmpty()){
+                    if (!$this->usuarioService->disponibilidad_dia($data['medico'], $fechaActual, $hora_inicio, $hora_fin)) {
+
+                        $this->eliminarEventoGoogle($eventosCreados,$citasCreadas, $usuarioCreador);
+
+                        throw new Exception("El médico no tiene disponibilidad el día " . $fechaActual->locale('es')->isoFormat('D [de] MMMM [de] YYYY'));
+                    }
+                }
+               
+                // Calcular horas de la cita
+                $hora_inicio_actual = Carbon::createFromFormat('H:i', $data['hora_inicio']);
+                $hora_fin_actual = $hora_inicio_actual->copy()->addMinutes($duracionServicio);
+
+                // if ($this->conflictoCita($data['medico'], $fechaActual, $hora_inicio, $hora_fin)) continue;
+                if ($this->conflictoCita($data['medico'], $fechaActual, $hora_inicio, $hora_fin)) {
+
+                    $this->eliminarEventoGoogle($eventosCreados,$citasCreadas, $usuarioCreador);
+
+                    throw new Exception("El médico ya tiene una cita agendada el día " . $fechaActual->locale('es')->isoFormat('D [de] MMMM [de] YYYY').
+                        ' a las '.$hora_inicio_actual->format('g:i a'));
+                }
+
+                // Crear cita
+                $cita = citas::create([
+                    'personal_id' => $data['medico'],
+                    'paciente_id' => $data['paciente'],
+                    'servicio_id' => $data['servicio'],
+                    'fecha_cita'  => $fechaActual->toDateString(),
+                    'hora_inicio' => $hora_inicio_actual->format('H:i'),
+                    'hora_fin'    => $hora_fin_actual->format('H:i'),
+                    'status_id'   => 1,
+                    'created_at'  => now(),
+                    'updated_at'  => now()
+                ]);
+
+                $citasCreadas[] = $cita->id;
+
+                 // Crear evento en Google Calendar
+                if ($puedeUsargoogleCalendar && $usuarioCreador['usuarioCreador']) {
+                    $evento=$this->googleService->crearEventoGoogleCalendar($cita,$usuarioCreador,
+                            Carbon::parse($fechaActual)->toDateString(),$hora_inicio_actual->format('H:i'),$hora_fin_actual->format('H:i'));
+                    
+                    if ($evento) {
+                        $eventosCreados[] = $evento->id;
+                    }
+                }
+              
+                //notificacion sistema
+                $this->notificacionService->crear_cita($data['medico'], $cita->id);
+        
+            }
+
+            DB::commit();
+
+            return $citasCreadas;
+
+        }catch (Exception $e) {
+            DB::rollBack();
+            throw $e;
+        }
+   }
+
+/**
+ * Calcula la fecha según el tipo de recurrencia
+ */
+    private function calcularFechaRecurrente(Carbon $fechaInicial, ?string $repetir, int $indice): ?Carbon
+    {
+        return match($repetir) {
+            'diaria'    => $fechaInicial->copy()->addDays($indice),
+            'cada3'     => $fechaInicial->copy()->addDays($indice * 3),
+            'semanal'   => $fechaInicial->copy()->addWeeks($indice),
+            'quincenal' => $fechaInicial->copy()->addWeeks($indice * 2),
+            'mensual'   => $fechaInicial->copy()->addMonths($indice),
+            default     => $indice === 0 ? $fechaInicial->copy() : null,
+        };
+    }
+
+    private function eliminarEventoGoogle(array $eventosCreados, array $citasCreadas, array $usuarioCreador){
+
+        foreach ($eventosCreados as $eventoId) {
+            $this->googleService->eliminarEvento($eventoId, $usuarioCreador);
+        }
+        Citas::whereIn('id', $citasCreadas)->delete();
+
+    }
 
     public function reporteCitas($datos,$request)
     {

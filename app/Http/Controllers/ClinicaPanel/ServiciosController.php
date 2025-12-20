@@ -94,11 +94,6 @@ class ServiciosController extends Controller
             ]);
 
         }catch(\Exception $e){
-            if ($request->ajax()) {
-                return response()->json([
-                    'error' => $e->getMessage()
-                ]);
-            }
             return response()->json([
                 'success' => false,
                 'message' => 'Ocurrió un error',
@@ -245,7 +240,7 @@ class ServiciosController extends Controller
  *
  * @throws \Exception
  */
-    public function reporteServicios($datos,$request){
+    public function reporteServicios(array $datos,array $request){
         try{
             // Determinar rango de fechas
             $fechaInicio = null;
@@ -389,7 +384,7 @@ class ServiciosController extends Controller
  *
  * @throws \Exception
  */
-    public function graficasServicios($reporte){
+    public function graficasServicios(array $reporte){
 
         // Paleta de colores disponibles para la gráfica
         $coloresDisponibles = [

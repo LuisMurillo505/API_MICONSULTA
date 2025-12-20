@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 
 class NotificacionService{
-    public Function crear_cita($personal_id,$cita_id){
+    public Function crear_cita(int $personal_id,int $cita_id){
         try{
             $mensaje='Se agendo una nueva cita: '.$cita_id;
             Notificaciones::create([
@@ -24,7 +24,7 @@ class NotificacionService{
               \Log::error($e);
         }
     }
-    public Function finalizar_cita($personal_id,$cita_id){
+    public Function finalizar_cita(int $personal_id,int $cita_id){
         try{
             $mensaje='Se finalizo la cita: '.$cita_id;
             Notificaciones::create([
@@ -40,7 +40,7 @@ class NotificacionService{
         }
     }
 
-    public Function cancelar_cita($personal_id,$cita_id){
+    public Function cancelar_cita(int $personal_id,int $cita_id){
         try{
             $mensaje='Se cancelo la cita: '.$cita_id;
             Notificaciones::create([

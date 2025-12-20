@@ -5,6 +5,8 @@ use App\Http\Controllers\ClinicaPanel\AdminController;
 use App\Http\Controllers\ClinicaPanel\UsuariosController;
 use App\Http\Controllers\ClinicaPanel\PacientesController;
 use App\Http\Controllers\ClinicaPanel\ServiciosController;
+use App\Http\Controllers\ClinicaPanel\EspecialidadController;
+use App\Http\Controllers\ClinicaPanel\CitasController;
 use App\Http\Controllers\ClinicaPanel\NotificacionController;
 use App\Http\Controllers\ClinicaPanel\MedicoController;
 use App\Http\Controllers\ClinicaPanel\RecepcionController;
@@ -72,14 +74,22 @@ Route::middleware('api.key')->put('/actualizar-servicio/{servicio_id}', [Servici
 Route::middleware('api.key')->get('/eliminar-servicio/{servicio_id}', [ServiciosController::class, 'delete']);
 Route::middleware('api.key')->get('/reporte-servicios', [ServiciosController::class, 'descargarReporteServicios']);
 
-
 //profesiones
 Route::middleware('api.key')->get('/profesiones/{usuario_id}', [AdminController::class, 'index_profesiones']);
+Route::middleware('api.key')->post('/crear-profesiones', [EspecialidadController::class, 'store']);
+Route::middleware('api.key')->put('/actualizar-profesiones/{profesion_id}', [EspecialidadController::class, 'update']);
 
 //citas
 Route::middleware('api.key')->get('/citas/{usuario_id}', [AdminController::class, 'index_citas']);
 Route::middleware('api.key')->get('/createcita/{clinica_id}', [AdminController::class, 'index_createcita']);
 Route::middleware('api.key')->get('/calendario/{usuario_id}', [AdminController::class, 'index_calendario']);
+Route::middleware('api.key')->post('/crear-cita', [CitasController::class, 'store']);
+Route::middleware('api.key')->get('/disponibilidad-medico/{medico_id}', [CitasController::class, 'disponibilidad']);
+Route::middleware('api.key')->put('/finalizar-cita/{cita_id}', [CitasController::class, 'update']);
+Route::middleware('api.key')->get('/cancelar-cita/{cita_id}', [CitasController::class, 'cancelar']);
+Route::middleware('api.key')->get('/reporte-citas', [CitasController::class, 'descargarReporteCitas']);
+
+
 
 
 

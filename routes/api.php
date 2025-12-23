@@ -20,6 +20,12 @@ Route::middleware('api.key')->post('/login', [LoginController::class, 'login']);
 //register
 Route::middleware('api.key')->post('/register', [SuscripcionController::class, 'register']);
 
+//suscripciones
+Route::middleware('api.key')->get('/suscribirse', [SuscripcionController::class, 'checkout']);
+Route::middleware('api.key')->get('/suscripcion/exito', [SuscripcionController::class, 'exito']);
+Route::middleware('api.key')->get('/suscripcion/cancelado/{usuario_id}', [SuscripcionController::class, 'cancelado']);
+Route::middleware('api.key')->post('/cancelar-suscripcion/{usuario_id}', [SuscripcionController::class, 'cancelarSuscripcion']);
+
 //verificar correo
 Route::get('/email/verify/{id}/{hash}', function (Illuminate\Http\Request $request) {
 

@@ -349,7 +349,7 @@ class UsuariosController extends Controller
  *
  * @throws \Exception Captura cualquier error inesperado durante el proceso.
  */
-    public function update_status($user_id){
+    public function update_status(int $user_id){
         try{
             // Obtener usuario y su clínica
             $usuario=Usuario::find($user_id);
@@ -364,11 +364,11 @@ class UsuariosController extends Controller
             $clinica=$usuario->clinicas->id;
 
             // Obtener número permitido de usuarios según el plan
-            $usuariosPermitidos=Clinicas::with(['suscripcion.plan.funciones_planes.funcion' => function ($query) {
-                $query->where('nombre', 'usuarios');
+            $usuariosPermitidos=Clinicas::with(['suscripcion.plan.funciones_planes' => function ($query) use($clinica) {
+            $query->where('funcion_id', 2);
             }])->where('id',$clinica)
-            ->whereHas('suscripcion.plan.funciones_planes.funcion',function($q) {
-                $q->where('nombre','usuarios');
+            ->whereHas('suscripcion.plan.funciones_planes',function($q) {
+                $q->where('funcion_id',2);
             })->first();
 
             $permitidos=$usuariosPermitidos->suscripcion->plan->funciones_planes->cantidad;
@@ -394,6 +394,7 @@ class UsuariosController extends Controller
                 if($permitidos<=$conteoUsuarios){
                     return response()->json([
                         'success' => false,
+                        'error'=>'LIMITE_ALCANZADO',
                         'message' => 'Limite Alcanzado',
                     ], 404); 
                 }

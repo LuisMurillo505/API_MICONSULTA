@@ -25,14 +25,14 @@ class SuscripcionService
 
     protected $stripeApiKey;
     protected $planService;
-    // public function __construct(PlanService $planService)
-    // {
-    //     // Establecer la clave de API de Stripe
-    //     $this->stripeApiKey = config('services.stripe.secret');  // Se obtiene desde la configuración
-    //     Stripe::setApiKey($this->stripeApiKey);  // Establecer la clave globalmente
+    public function __construct(PlanService $planService)
+    {
+        // Establecer la clave de API de Stripe
+        $this->stripeApiKey = config('services.stripe.secret');  // Se obtiene desde la configuración
+        Stripe::setApiKey($this->stripeApiKey);  // Establecer la clave globalmente
 
-    //     $this->planService=$planService;
-    // }
+        $this->planService=$planService;
+    }
 
     public function verificarSuscripcion($usuario){
         try{
@@ -110,8 +110,20 @@ class SuscripcionService
                     'quantity' => 1,
                 ]],
                 'allow_promotion_codes' => true,
-                'success_url' => route('suscripcion.exito') . '?session_id={CHECKOUT_SESSION_ID}',
-                'cancel_url' => route('suscripcion.cancelado'),
+                // 'success_url' => config('app.web_url') .
+                // route('suscripcion.exito', [], false) .
+                // '?session_id={CHECKOUT_SESSION_ID}',
+                // 'cancel_url' => config('app.web_url') .
+                // route('suscripcion.cancelado', [], false),
+
+                // 'success_url' => route('suscripcion.exito') . '?session_id={CHECKOUT_SESSION_ID}',
+                // 'cancel_url' => route('suscripcion.cancelado'),
+
+                'success_url' => rtrim(config('app.frontend_url'), '/') .
+                    '/suscripcion/exito?session_id={CHECKOUT_SESSION_ID}',
+
+                'cancel_url' => rtrim(config('app.frontend_url'), '/') .
+                    '/suscripcion/cancelado',
             ]);
 
             return $checkoutSession;
@@ -323,6 +335,12 @@ class SuscripcionService
             $usuario=Usuario::where('clinica_id',$clinica->id)
             ->whereDoesntHave('personal')
             ->first();
+            if(!$usuario){
+                $usuario=Usuario::where('clinica_id',$clinica->id)
+                ->whereHas('personal.puesto',function($q) {
+                    $q->where('descripcion','Personal Administrador');
+                })->first();
+            }
 
             if($clinica){
                 // Log::info("Usuario encontrado con customer ID: $stripe_customer_id en invoice.payment_failed.");
@@ -380,6 +398,12 @@ class SuscripcionService
             $usuario=Usuario::where('clinica_id',$clinica->id)
             ->whereDoesntHave('personal')
             ->first();
+            if(!$usuario){
+                $usuario=Usuario::where('clinica_id',$clinica->id)
+                ->whereHas('personal.puesto',function($q) {
+                    $q->where('descripcion','Personal Administrador');
+                })->first();
+            }
 
             if($clinica){
                 Log::info("Usuario encontrado con customer ID: $stripe_customer_id.");

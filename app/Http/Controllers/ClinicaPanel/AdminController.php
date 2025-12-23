@@ -16,6 +16,8 @@ use App\Models\Ciudades;
 use App\Services\PlanService;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Log;
+
 
 /**
  * Controlador AdminController

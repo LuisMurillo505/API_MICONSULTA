@@ -56,7 +56,8 @@ class SuscripcionController extends Controller
             if ($check_usuario) {
                 return response()->json([
                     'success' => false,
-                    'error'=>'usuario_existe'
+                    'error'=>'usuario_existe',
+                    'message'=>'Correo ya registrado, por favor inicie sesión.'
                 ], 403);
             }
 
@@ -65,7 +66,8 @@ class SuscripcionController extends Controller
             if (!$plan) {
                 return response()->json([
                     'success' => false,
-                    'error'=>'plan_noExiste'
+                    'error'=>'plan_noExiste',
+                    'message'=>'El plan seleccionado no es válido.'
                 ], 403);
             }
 
@@ -121,10 +123,14 @@ class SuscripcionController extends Controller
             $plan = Planes::where('nombre',$request->plan)->first();
 
             //usuario
-            $usuario=auth()->user();
+            $usuario=usuario::findOrFail($request->usuario_id);
 
             if (!$plan->stripe_price_id) {
-                return redirect()->back()->with('error', 'Este plan no tiene un ID de precio de Stripe configurado.');
+                  return response()->json([
+                    'success' => false,
+                    'error'=>'plan_sinStripePriceID',
+                    'message'=>'Este plan no tiene un ID de precio de Stripe configurado.'
+                ], 403);
             }
 
             // Crear u obtener cliente de Stripe
@@ -134,13 +140,16 @@ class SuscripcionController extends Controller
             $checkoutSession=$this->suscripcionService->checkoutSession($plan,$stripeCustomer);
 
             // Redirigir al usuario a Stripe Checkout
-            return redirect($checkoutSession->url);
+            return response()->json([
+                'success'=>true,
+                'url'=>$checkoutSession->url
+            ]);
 
           } catch (\Throwable $e) {
             // Manejo de errores: retorna mensaje descriptivo con el detalle de la excepción.
             return response()->json([
                 'success' => false,
-                'message' => 'Ocurrió un error al actualizar el usuario',
+                'message' => 'Ocurrió un error en eñ checkout',
                 'error' => $e->getMessage(),
             ], 500);   
         }
@@ -149,94 +158,135 @@ class SuscripcionController extends Controller
 
     public function exito(Request $request)
     {
-          // Buscar al usuario por su Stripe Customer ID
-        $usuario = auth()->user();
-
-        Stripe::setApiKey(config('services.stripe.secret'));
-
-        $session_id = $request->query('session_id');
-
-        if (!$session_id) {
-            return redirect('/')->with('error', 'No se encontró el ID de sesión.');
-        }
-
+       
         try {
 
+            // Buscar al usuario por su Stripe Customer ID
+            $usuario = Usuario::findOrFail($request->usuario_id);
+
+            if (!$usuario) {
+                return response()->json([
+                    'success' => false,
+                    'error'=>'usuario_Noexiste',
+                    'message'=>'Usuario no encontrado'
+                ], 403);
+            }
+
+            Stripe::setApiKey(config('services.stripe.secret'));
+
+            $session_id = $request->query('session_id');
+
+            if (!$session_id) {
+                return response()->json([
+                    'success' => false,
+                    'error'=>'sessioID_noEncontrada',
+                    'message'=>'No se encontró el ID de sesión.'
+                ], 403);
+            }
             //obtenemos datos de la suscripcion
             $session = $this->suscripcionService->stripeSession($session_id);
 
-
             $plan = Planes::where('stripe_price_id', $session['stripePriceId'])->first();
 
-            if ($usuario) {
-
-                //Obtener todas las suscripciones activas del cliente
-                $activeSubscriptions = Subscription::all([
-                    'customer' => $session['stripeCustomerId'],
-                    'status' => 'active',
-                    'limit' => 100,
-                ]);
-
-                //cancelar la anterior suscripcion
-                foreach ($activeSubscriptions->data as $activeSub) {
-
-                    if ($activeSub->id !== $session['stripeSubscriptionId']) {
-                        Subscription::retrieve($activeSub->id)->cancel();;
-                    }
-                }
-                //guardar pago 
-                $this->suscripcionService->savePayment($session,$usuario,$plan);
-
-                //activar suscripcion
-                $this->suscripcionService->activarSuscripcion($session,$usuario,$plan);
-
-                Mail::to($usuario->correo)->send(new \App\Mail\RegistroMail( $usuario,$plan));
-
-                // return redirect()->route('admin.index')->with('welcome', 'Suscripción exitosa y plan activado.');          
+            if(!$plan){
+                return response()->json([
+                    'success' => false,
+                    'error'=>'plan_noEncontrado',
+                    'message'=>'Plan no encontrador'
+                ], 403);
             }
 
-            // return redirect()->route('login')->with('error', 'Usuario no encontrado.');
+            //Obtener todas las suscripciones activas del cliente
+            $activeSubscriptions = Subscription::all([
+                'customer' => $session['stripeCustomerId'],
+                'status' => 'active',
+                'limit' => 100,
+            ]);
+
+            //cancelar la anterior suscripcion
+            foreach ($activeSubscriptions->data as $activeSub) {
+
+                if ($activeSub->id !== $session['stripeSubscriptionId']) {
+                    Subscription::retrieve($activeSub->id)->cancel();;
+                }
+            }
+            //guardar pago 
+            $this->suscripcionService->savePayment($session,$usuario,$plan);
+
+            //activar suscripcion
+            $this->suscripcionService->activarSuscripcion($session,$usuario,$plan);
+
+            Mail::to($usuario->correo)->send(new \App\Mail\RegistroMail( $usuario,$plan));
+
+            return response()->json([
+                'success'=>true,
+                'message'=>'Suscripción exitosa y plan activado.'
+            ]);
 
         } catch (\Throwable $e) {
             // Manejo de errores: retorna mensaje descriptivo con el detalle de la excepción.
             return response()->json([
                 'success' => false,
-                'message' => 'Ocurrió un error al actualizar el usuario',
+                'message' => 'Ocurrió un error en la suscripcion',
                 'error' => $e->getMessage(),
             ], 500);   
         }
     }
-    public function cancelado()
+
+    public function cancelado(int $usuario_id)
     {
-         $usuario = auth()->user();
+        try{
+            $usuario = Usuario::findOrFail($usuario_id);
 
-            if ($usuario) {
-                // $usuario->status_id = 1;
-                // $usuario->save();
-
-                $pago=Payment::where('clinica_id',$usuario->clinicas->id)->first();
-
-                if($pago){
-                    // return redirect()->route('login')->with('error', 'Hubo un error en el pago, Inicia sesion nuevamente');
-                }
-                
-                $this->suscripcionService->activarPlanGratis($usuario->clinicas->suscripcion,$usuario);
-                // return redirect()->route('login')->with('error', 'Hubo un error en el pago, plan Gratuito activado. Inicia sesion nuevamente');
-
-                
+            if (!$usuario) {
+                return response()->json([
+                    'success' => false,
+                    'error'=>'usuario_Noexiste',
+                    'message'=>'Usuario no encontrado'
+                ], 403);
             }
-        // return view('login');
+
+            //checar si ya hubo un pago o suscripcion gratuita antes
+            $pago=Payment::where('clinica_id',$usuario->clinicas->id)->first();
+
+            if($pago){
+                return response()->json([
+                    'success' => false,
+                    'error'=>'error_pago',
+                    'message'=>'Hubo un error en el pago, inicia sesion nuevamente.'
+                ], 403);
+            }
+            
+            $this->suscripcionService->activarPlanGratis($usuario->clinicas->suscripcion,$usuario);
+            return response()->json([
+                'success' => false,
+                'error'=>'erro_pago',
+                'message'=>'Hubo un error en el pago, plan Gratuito activado. Inicia sesion nuevamente'
+            ], 403);
+
+        }catch (\Throwable $e) {
+            // Manejo de errores: retorna mensaje descriptivo con el detalle de la excepción.
+            return response()->json([
+                'success' => false,
+                'message' => 'Ocurrió un error en la suscripcion',
+                'error' => $e->getMessage(),
+            ], 500);   
+        }
+        
     }
 
-    public function cancelar_suscripcion(){
+    public function cancelarSuscripcion(int $usuario_id){
         try{
-            $usuario=auth()->user();
+            $usuario=Usuario::findOrFail($usuario_id);
 
             $suscripcion_clinica=Suscripcion::where('clinica_id',$usuario->clinica_id)->first();
 
-
             if (!$suscripcion_clinica->stripe_subscription_id) {
-                return back()->with('error', 'No se encontró una suscripción activa.');
+                return response()->json([
+                    'success' => false,
+                    'error'=>'Suscripcion_NoEncontrada',
+                    'message'=>'No se encontró una suscripción activa.'
+                ], 403);
             }
 
             Stripe::setApiKey(config('services.stripe.secret'));
@@ -248,7 +298,10 @@ class SuscripcionController extends Controller
             $suscripcion_clinica->status_id=6;
             $suscripcion_clinica->save();
 
-            // return back()->with('success', 'Tu suscripción ha sido cancelada. Seguirá activa hasta el final del período actual.');
+            return response()->json([
+                'success'=>true,
+                'message'=>'Tu suscripción ha sido cancelada. Seguirá activa hasta el final del período actual.'
+            ]);
 
         } catch (\Throwable $e) {
             // Manejo de errores: retorna mensaje descriptivo con el detalle de la excepción.

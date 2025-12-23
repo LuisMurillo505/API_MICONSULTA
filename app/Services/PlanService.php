@@ -6,6 +6,7 @@ use App\Models\Clinicas;
 use App\Models\ArchivosPaciente;
 use App\Models\Personal;
 use App\Models\Pacientes;
+use App\Models\Funciones_planes;
 use App\Models\Servicio;
 use App\Models\Citas;
 use Exception;
@@ -323,5 +324,219 @@ public function puedeSubirArchivosPacientes($clinica_id,$paciente_id){
             throw $e;
         }
     }
+
+    public function desactualizar_usuarios($clinica_id,$plan_nuevo){
+
+        try{
+
+            // Obtener la suscripción actual de la clínica
+            $clinica=Clinicas::find($clinica_id);
+
+
+            // Manejo del caso donde no hay suscripción
+            if (!$clinica) {
+                return null; 
+            }
+
+            //Obtenemos el id del plan actual
+            $plan_actual=$clinica->suscripcion->plan_id;
+
+            //usuarios activos de la clinica
+            $conteoUsuarios=Personal::whereHas('usuario',function($q) use($clinica_id){
+                $q->where('clinica_id',$clinica_id)
+                    ->where('status_id',1);
+            })->count();
+
+
+            //Comparación de planes
+            $funciones_actual=Funciones_planes::where('plan_id',$plan_actual)->
+                    where('funcion_id',2)->first();
+
+            $funciones_nuevo=Funciones_planes::where('plan_id',$plan_nuevo)
+                    ->where('funcion_id',2)->first();
+
+
+
+            //comparar las cantidade
+            if($funciones_actual->cantidad<=$funciones_nuevo->cantidad){
+                return null;
+            }else{
+
+                if($conteoUsuarios>$funciones_nuevo->cantidad){
+
+                    //Diferencia de usuarios entre el plan nuevo y plan actual
+                    $diferencia=$conteoUsuarios-$funciones_nuevo->cantidad;
+
+                    //obtenemos el personal de la clinica segun la diferencia de usuarios
+                    $personal_clinica=Personal::whereHas('usuario',function($q) use($clinica_id){
+                        $q->where('clinica_id',$clinica_id)
+                            ->where('status_id',1);
+                    })->with('usuario')
+                    ->orderBy('created_at','desc')
+                    ->limit($diferencia)
+                    ->get();
+
+                    //actualizar el estado a inactivo
+                    foreach($personal_clinica as $personal){
+                        if($personal->usuario){
+                            $personal->usuario->status_id=2;
+                            $personal->usuario->save();
+                        }
+                    }
+
+                }else{
+                    return null;
+                }
+                
+            }
+        }catch(Exception $e){
+            return back()->with('error', 'Error: ' . $e->getMessage());
+        }
+    }
+
+    public function desactualizar_servicios($clinica_id,$plan_nuevo){
+
+        try{
+
+            // Obtener la suscripción actual de la clínica
+            $clinica=Clinicas::find($clinica_id);
+
+            // Manejo del caso donde no hay suscripción
+            if (!$clinica) {
+                return null; 
+            }
+
+            //Obtenemos el id del plan actual
+            $plan_actual=$clinica->suscripcion->plan_id;
+
+            //usuarios activos de la clinica
+            $conteoServicios=Servicio::where('clinica_id',$clinica_id)
+            ->where('status_id',1)->count();
+
+            //Comparación de planes
+            $funciones_actual=Funciones_planes::where('plan_id',$plan_actual)->
+                    where('funcion_id',1)->first();
+
+            $funciones_nuevo=Funciones_planes::where('plan_id',$plan_nuevo)
+                    ->where('funcion_id',1)->first();
+
+            //comparar las cantidade
+            if($funciones_actual->cantidad<=$funciones_nuevo->cantidad){
+                return null;
+            }else{
+
+                if($conteoServicios>$funciones_nuevo->cantidad){
+
+                    //Diferencia de usuarios entre el plan nuevo y plan actual
+                    $diferencia=$conteoServicios-$funciones_nuevo->cantidad;
+
+                    //obtenemos el personal de la clinica segun la diferencia de usuarios
+                    $servicios_clinica=Servicio::where('clinica_id',$clinica_id)
+                        ->where('status_id',1)
+                        ->orderBy('created_at','desc')
+                        ->limit($diferencia)
+                        ->get();
+
+                    //actualizar el estado a inactivo
+                    foreach($servicios_clinica as $servicios){
+                        if($servicios){
+                            $servicios->status_id=2;
+                            $servicios->save();
+                        }
+                    }
+
+                }else{
+                    return null;
+                }
+                
+            }
+        }catch(Exception $e){
+            return back()->with('error', 'Error: ' . $e->getMessage());
+        }
+    }
+
+    public function desactualizar_archivos($clinica_id,$plan_nuevo){
+
+        try{
+
+            // Obtener la suscripción actual de la clínica
+            $clinica=Clinicas::find($clinica_id);
+
+            // Manejo del caso donde no hay suscripción
+            if (!$clinica) {
+                return null; 
+            }
+
+            //Obtenemos el id del plan actual
+            $plan_actual=$clinica->suscripcion->plan_id;
+
+            //Comparación de planes
+            $funciones_actual=Funciones_planes::where('plan_id',$plan_actual)->
+                    where('funcion_id',5)->first();
+
+            $funciones_nuevo=Funciones_planes::where('plan_id',$plan_nuevo)
+                    ->where('funcion_id',5)->first();
+
+            //comparar las cantidade
+            if($funciones_actual->cantidad<=$funciones_nuevo->cantidad){
+                return null;
+            }
+
+            $pacientes=Pacientes::where('clinica_id',$clinica_id)->get();
+
+            foreach($pacientes as $p){
+                $conteoarchivos=ArchivosPaciente::where('paciente_id',$p->id)
+                    ->count();
+
+                if($conteoarchivos>$funciones_nuevo->cantidad){
+
+                    //Diferencia de usuarios entre el plan nuevo y plan actual
+                    $diferencia=$conteoarchivos-$funciones_nuevo->cantidad;
+
+                    //obtenemos el personal de la clinica segun la diferencia de usuarios
+                    $archivos_paciente=ArchivosPaciente::where('paciente_id',$p->id)
+                    ->orderBy('created_at','desc')
+                    ->limit($diferencia)
+                    ->get();
+
+                    //actualizar el estado a inactivo
+                    foreach($archivos_paciente as $ap){
+                        if($ap){
+                            $ap->status_id=2;
+                            $ap->save();
+                        }
+                    }
+
+                }else{
+                    return null;
+                }
+                
+            }
+            
+        }catch(Exception $e){
+            return back()->with('error', 'Error: ' . $e->getMessage());
+        }
+    }
+
+    public function verificarSuscripciones(){
+        try{
+            $clinicas=Clinicas::all();
+        
+            foreach($clinicas as $clinica){
+                $plan=$clinica->suscripcion->plan;
+                $dias_restantes=$clinica->suscripcion->getDiasRestantes();
+
+                if($dias_restantes<=-$plan->dias_espera){
+                    $clinica->suscripcion->update([
+                        'status_id'=>2
+                    ]);
+                }
+
+            }
+        }catch(Exception $e){
+            throw $e;
+        }
+    }
+
 }
  

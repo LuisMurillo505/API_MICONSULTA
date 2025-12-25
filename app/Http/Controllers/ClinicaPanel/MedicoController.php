@@ -41,7 +41,7 @@ class MedicoController extends Controller
  * @throws \Throwable          Lanza excepción si ocurre un error dentro del servicio `DatosUsuario`
  *                             o durante las consultas de conteo.
  */
-    public function conteoDatos($usuario_id){
+    public function conteoDatos(int $usuario_id){
 
         $datos=$this->usuarioService->DatosUsuario($usuario_id);
 
@@ -82,7 +82,7 @@ class MedicoController extends Controller
  *
  * @throws \Throwable
  */
-    public function index($usuario_id){
+    public function index(int $usuario_id){
          
         try{
             //Obtener la información detallada del usuario:
@@ -129,7 +129,7 @@ class MedicoController extends Controller
  *
  * @throws \Throwable
  */
-     public function index_citas(Request $request,$usuario_id){
+     public function index_citas(Request $request,int $usuario_id){
          
         try{
             //Obtener datos generales del usuario,
@@ -223,7 +223,7 @@ class MedicoController extends Controller
  * @param int $usuario_id  ID del usuario autenticado.
  * @return \Illuminate\Http\JsonResponse
  */
-    public function index_calendario($usuario_id){
+    public function index_calendario(int $usuario_id){
 
         try{
             // Obtener datos del usuario, incluyendo usuario_id y clinica_id

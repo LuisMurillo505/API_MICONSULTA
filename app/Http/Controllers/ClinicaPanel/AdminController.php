@@ -48,7 +48,7 @@ class AdminController extends Controller
  * @param  int  $usuario_id  ID del usuario autenticado.
  * @return array  Retorna un arreglo con los conteos y límites calculados.
  */
-    public function conteoDatos($usuario_id)
+    public function conteoDatos(int $usuario_id)
     {
         // Obtener los datos generales del usuario (como la clínica a la que pertenece)
         $datos=$this->usuarioService->DatosUsuario($usuario_id);
@@ -129,7 +129,7 @@ class AdminController extends Controller
  * @param  int  $usuario_id  ID del usuario autenticado.
  * @return \Illuminate\Http\JsonResponse  Respuesta JSON con los datos o un error.
  */
-    public function index($usuario_id)
+    public function index(int $usuario_id)
     {   
         try{
             //Obtener los datos generales del usuario,
@@ -185,7 +185,7 @@ class AdminController extends Controller
  * @param  int  $usuario_id  ID del usuario.
  * @return \Illuminate\Http\JsonResponse  Respuesta JSON con los datos del perfil o mensaje de error.
  */
-    public function index_perfil($usuario_id){
+    public function index_perfil(int $usuario_id){
    
         try{    
             //Buscar al usuario en la base de datos según su ID.
@@ -239,7 +239,7 @@ class AdminController extends Controller
  * @param  int  $usuario_id  ID del usuario autenticado o que realiza la solicitud.
  * @return \Illuminate\Http\JsonResponse  Respuesta JSON con la lista de usuarios o mensaje de error.
  */
-    public function index_usuarios(Request $request,$usuario_id)
+    public function index_usuarios(Request $request,int $usuario_id)
     {   
         try{
             // Se obtiene el usuario principal que hace la solicitud,
@@ -312,7 +312,7 @@ class AdminController extends Controller
  *
  * @throws \Throwable  Captura cualquier excepción ocurrida durante la consulta.
  */
-    public function index_crearUsuario($usuario_id)  {
+    public function index_crearUsuario(int $usuario_id)  {
 
         try{
             // Se obtiene el usuario principal que hace la solicitud,
@@ -358,7 +358,7 @@ class AdminController extends Controller
  *
  * @throws \Throwable  Captura cualquier error durante el proceso.
  */
-    public function index_pacientes(Request $request,$usuario_id){
+    public function index_pacientes(Request $request,int $usuario_id){
 
         try{
             //Obtener datos clave del usuario
@@ -459,7 +459,7 @@ class AdminController extends Controller
  *
  * @return void La función no retorna ningún valor explícito, realiza la acción de actualización directamente.
  */
-    public function actualizarEdad($clinica_id){
+    public function actualizarEdad(int $clinica_id){
 
         //Obtener todos los pacientes de la clínica especificada
         $pacientes=Pacientes::where('clinica_id',$clinica_id)->get();
@@ -538,7 +538,7 @@ class AdminController extends Controller
  * * @throws \Throwable Si ocurre cualquier error durante la obtención de datos o la ejecución del servicio de usuario.
  */
 
-    public function index_servicios(Request $request, $usuario_id){
+    public function index_servicios(Request $request,int $usuario_id){
 
         try{
             //Obtener la información detallada del usuario
@@ -617,7 +617,7 @@ class AdminController extends Controller
  * (especialidades filtradas, lista completa de especialidades, resultado del filtro) en caso de éxito,
  * o un mensaje de error con código 500 en caso de fallo.
  */
-    public function index_profesiones(Request $request,$usuario_id){
+    public function index_profesiones(Request $request,int $usuario_id){
 
         try{
             //Obtener datos clave del usuario
@@ -693,7 +693,7 @@ class AdminController extends Controller
  * o un mensaje de error con código 500 en caso de fallo.
  */
 
-    public function index_citas(Request $request,$usuario_id){
+    public function index_citas(Request $request,int $usuario_id){
 
         try{
             //Obtener datos clave del usuario
@@ -833,7 +833,7 @@ class AdminController extends Controller
  * el array de citas formateadas ('citas') en caso de éxito,
  * o un mensaje de error con código 500 en caso de fallo.
  */ 
-    public function index_calendario($usuario_id){
+    public function index_calendario(int $usuario_id){
         try{
             $datos=$this->usuarioService->DatosUsuario($usuario_id);
 

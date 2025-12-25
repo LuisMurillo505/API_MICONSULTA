@@ -7,10 +7,10 @@ use App\Services\SuscripcionService;
 use Illuminate\Http\Request;
 use Exception;
 use Illuminate\Validation\ValidationException;
-use Illuminate\Support\Facades\Auth;
-use App\Models\UsuarioAdmin;
 use App\Models\Usuario;
+use App\Models\Ciudades;
 use App\Models\Personal;
+use App\Models\Planes;
 use Illuminate\Support\Facades\DB;
 
 class LoginController extends Controller
@@ -21,6 +21,76 @@ class LoginController extends Controller
     public function __construct(SuscripcionService $suscripcionService)
     {
         $this->suscripcionService=$suscripcionService;
+    }
+
+/**
+ * Obtiene el listado completo de ciudades.
+ *
+ * Este método:
+ * - Recupera todas las ciudades registradas en la base de datos.
+ * - Retorna la información en formato JSON.
+ *
+ * @param \Illuminate\Http\Request $request
+ *        Request HTTP (no requiere parámetros específicos).
+ *
+ * @return \Illuminate\Http\JsonResponse
+ *         Respuesta JSON con el listado de ciudades.
+ *
+ * @throws \Exception
+ */
+    public function ciudades(Request $request){
+        try{
+            // Obtener todas las ciudades
+            $ciudades=Ciudades::all();
+
+            return response()->json([
+                'success'=>true,
+                'data'=>compact('ciudades')
+            ]);
+
+         }catch (Exception $e) {
+            // Errores generales
+            return response()->json([
+                'success' => false,
+                'message' => 'Ocurrió un error.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+
+    }
+
+/**
+ * Obtiene los planes disponibles del sistema.
+ *
+ * Este método:
+ * - Recupera los planes principales (Estandar y Pro).
+ * - Retorna la información en formato JSON.
+ *
+ * @return \Illuminate\Http\JsonResponse
+ *         Respuesta JSON con los planes disponibles.
+ *
+ * @throws \Exception
+ */
+     public function planes(){
+        try{    
+            // Obtener planes principales
+            $Estandar=Planes::where('nombre','Estandar')->first();
+            $Pro=Planes::where('nombre','Pro')->first();
+
+            return response()->json([
+                'success'=>true,
+                'data'=>compact('Estandar','Pro')
+            ]);
+
+        }catch(Exception $e){
+            // Errores generales
+            return response()->json([
+                'success' => false,
+                'message' => 'Ocurrió un error.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+        
     }
 /**
  * Inicia sesión de usuario mediante API.
@@ -34,6 +104,7 @@ class LoginController extends Controller
  *
  * @throws \Illuminate\Validation\ValidationException Si las credenciales no son válidas.
  */
+ 
     public function login(Request $request)
     {
         try {
@@ -121,17 +192,4 @@ class LoginController extends Controller
         }
     }
 
-    public function logout(Request $request){
-
-         // Cierra la sesión del usuario
-        Auth::logout();
-
-        //Invalidacion de la sesion actual, se destruye la informacion de la sesion y asegura que el autenticador ya no sea valido
-        $request->session()->invalidate();
-
-        // Regenera el token CSRF de la sesión
-        $request->session()->regenerateToken();
-        
-        return redirect(route('login'));
-    }
 }

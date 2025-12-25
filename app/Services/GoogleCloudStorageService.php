@@ -20,7 +20,7 @@ class GoogleCloudStorageService
     }
 
      // Subir archivo
-    public function upload($filePath, $destinationPath){
+    public function upload(string $filePath,string $destinationPath){
 
          $this->bucket->upload(
             file_get_contents($filePath), // Cargar el contenido del archivo
@@ -31,7 +31,7 @@ class GoogleCloudStorageService
     }
 
      // Generar URL pública (si el bucket está público)
-    public function getPublicUrl($path)
+    public function getPublicUrl(string $path)
     {
         return sprintf('https://storage.googleapis.com/%s/%s',
             env('GOOGLE_CLOUD_STORAGE_BUCKET'),
@@ -40,7 +40,7 @@ class GoogleCloudStorageService
     }
 
     // Descargar archivo temporalmente (signed URL)
-    public function getSignedUrl($path, $minutes = 10)
+    public function getSignedUrl(string $path, int $minutes = 10)
     {
         $object = $this->bucket->object($path);
 
@@ -53,7 +53,7 @@ class GoogleCloudStorageService
     }
 
     // Eliminar archivo
-    public function delete($path)
+    public function delete(string $path)
     {
         $object = $this->bucket->object($path);
         $object->delete();

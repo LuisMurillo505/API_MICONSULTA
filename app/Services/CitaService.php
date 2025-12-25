@@ -50,94 +50,6 @@ class CitaService
                 })->exists();
     }
 
-//     public function crearCitasRecurrentes(?array $data, Carbon $hora_inicio, Carbon $hora_fin, ?string $repetir, ?int $repeticiones,int $usuario_id ) :array{
-//         DB::beginTransaction();
-//         try{
-//             $datos=$this->usuarioService->DatosUsuario($usuario_id);
-
-//             $citasCreadas = [];
-//             $eventosCreados=[];
-//             $repeticiones = max(1, (int) $repeticiones);
-
-//             $fechaInicial = Carbon::parse($data['fecha']);
-
-                            
-//             for ($i = 0; $i < $repeticiones; $i++) {
-
-//                 $fechaActual = match($repetir) {
-//                     'diaria'    => $fechaInicial->copy()->addDays($i),
-//                     'cada3'     => $fechaInicial->copy()->addDays($i * 3),
-//                     'semanal'   => $fechaInicial->copy()->addWeeks($i),
-//                     'quincenal' => $fechaInicial->copy()->addWeeks($i * 2),
-//                     default     => $i === 0 ? $fechaInicial->copy() : null,
-//                 };
-
-//                 if (!$fechaActual) continue;
-
-//                 $disponibilidad_medico=Disponibilidad::where('personal_id',$data['medico'])->get();
-
-//                 if($disponibilidad_medico->isNotEmpty()){
-//                     if (!$this->usuarioService->disponibilidad_dia($data['medico'], $fechaActual, $hora_inicio, $hora_fin)) {
-//                         foreach ($eventosCreados as $eventoId) {
-//                             $this->googleService->eliminarEvento($eventoId, $cita);
-        
-//                         }
-//                         Citas::whereIn('id', $citasCreadas)->delete();
-
-//                         throw new Exception("El médico no tiene disponibilidad el día " . $fechaActual->locale('es')->isoFormat('D [de] MMMM [de] YYYY'));
-//                     }
-//                 }
-               
-//                 $duracionServicio = Servicio::find($data['servicio'])->duracion;
-//                 $hora_inicio_actual = Carbon::createFromFormat('H:i', $data['hora_inicio']);
-//                 $hora_fin_actual = $hora_inicio_actual->copy()->addMinutes($duracionServicio);
-
-              
-//                 if ($this->conflictoCita($data['medico'], $fechaActual, $hora_inicio, $hora_fin)) continue;
-
-//                 // Crear cita
-//                 $cita = citas::create([
-//                     'personal_id' => $data['medico'],
-//                     'paciente_id' => $data['paciente'],
-//                     'servicio_id' => $data['servicio'],
-//                     'fecha_cita'  => $fechaActual->toDateString(),
-//                     'hora_inicio' => $hora_inicio_actual->format('H:i'),
-//                     'hora_fin'    => $hora_fin_actual->format('H:i'),
-//                     'status_id'   => 1,
-//                     'created_at'  => now(),
-//                     'updated_at'  => now()
-//                 ]);
-
-//                 $citasCreadas[] = $cita->id;
-
-//                 //medico de la cita
-//                 $medico=Personal::find($data['medico']);
-
-//                 $googleCalendar=$this->planServices->puedeUsarGoogleCalendar($datos['clinica_id']);
-//                 if($googleCalendar){
-//                     $usuarioCreador=$this->googleService->usuarioCreador($data['medico'],$datos['clinica_id']);
-//                     if($usuarioCreador['usuarioCreador']){
-//                         $eventU=$this->googleService->crearEventoGoogleCalendar($cita,$usuarioCreador,
-//                             Carbon::parse($fechaActual)->toDateString(),$hora_inicio_actual->format('H:i'),$hora_fin_actual->format('H:i'));
-//                         $eventosCreados[]=$eventU->id;
-//                     }
-//                 }
-              
-//                 //notificacion sistema
-//                 $this->notificacionService->crear_cita($data['medico'], $cita->id);
-        
-//             }
-
-//             DB::commit();
-
-//             return $citasCreadas;
-
-//         }catch (Exception $e) {
-//             DB::rollBack();
-//             throw $e;
-//         }
-//    }
-
     public function crearCitasRecurrentes(?array $data, Carbon $hora_inicio, Carbon $hora_fin, ?string $repetir, ?int $repeticiones,int $usuario_id ) :array{
         DB::beginTransaction();
         try{
@@ -254,7 +166,7 @@ class CitaService
 
     }
 
-    public function reporteCitas($datos,$request)
+    public function reporteCitas(array $datos,array $request)
     {
         
         // Variables de rango
@@ -370,7 +282,7 @@ class CitaService
 
     }
 
-    public function graficasCitas($reporte){
+    public function graficasCitas(array $reporte){
 
         $coloresDisponibles = [
             "#198754", "#0d6efd", "#ffc107", "#dc3545", "#6f42c1",

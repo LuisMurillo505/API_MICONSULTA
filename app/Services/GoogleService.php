@@ -28,7 +28,7 @@ class GoogleService
         $this->usuarioService = $usuarioService;
     }
 
-    public function clienteGoogle($usuario){
+    public function clienteGoogle(Usuario $usuario){
 
         
         $client = new Google_Client();
@@ -84,7 +84,7 @@ class GoogleService
     }
     
 
-    function crearEventoGoogleCalendar($cita,$usuarioCreador,$fecha, $hora_inicio,$hora_fin)
+    function crearEventoGoogleCalendar(Citas $cita,array $usuarioCreador, $fecha,  $hora_inicio, $hora_fin)
     {
 
         $servicio=Servicio::find($cita->servicio_id);

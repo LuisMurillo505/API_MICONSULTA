@@ -308,7 +308,7 @@ class PacientesController extends Controller
  * @throws \Exception
  *         Si ocurre cualquier error durante el proceso.
  */
-    public function deleteNote($observacion_id){
+    public function deleteNote(int $observacion_id){
         try{
             // Buscar observación
             $observaciones=Observaciones::find($observacion_id);
@@ -355,7 +355,7 @@ class PacientesController extends Controller
  * @throws \Exception
  *         Si ocurre cualquier error durante el proceso.
  */
-    public function DescargarExpediente($paciente_id,$cita_id)
+    public function DescargarExpediente(int $paciente_id,int $cita_id)
     {
         try{
 
@@ -395,24 +395,6 @@ class PacientesController extends Controller
         }
        
     }
-
-    // public function DescargarExpedienteCita($paciente_id,$cita_id)
-    // {
-    //     $datos=$this->usuarioService->DatosUsuario();
-
-    //     $paciente=Pacientes::find($paciente_id);
-
-    //     $expediente=Expedientes::with(['paciente','cita.servicio'])
-    //         ->whereHas('paciente', function($q) use($paciente_id){
-    //             $q->where('id',$paciente_id);
-    //         })->orderby('id','desc')->get();
-
-    //     $observaciones=Observaciones::where('paciente_id',$paciente_id)->get();
-
-    //     $pdf = pdf::loadView('admin.descargarExpediente', compact('paciente','expediente','observaciones'),$datos);
-
-    //     return $pdf->download("Expediente_{$paciente->nombre}.pdf");
-    // }
 
 
 /**
@@ -494,7 +476,7 @@ class PacientesController extends Controller
  * @throws \Exception
  *         Si ocurre cualquier error durante el proceso.
  */
-    public function descargarArchivo($archivo_id)
+    public function descargarArchivo(int $archivo_id)
     {
         try{
             // Obtener archivo del paciente
@@ -533,7 +515,7 @@ class PacientesController extends Controller
  * @throws \Exception
  *         Si ocurre cualquier error durante el proceso.
  */
-    public function destroy($archivo_id)
+    public function destroy(int $archivo_id)
     {
         try{
             // Obtener archivo del paciente

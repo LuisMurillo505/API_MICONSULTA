@@ -7,9 +7,8 @@ use App\Http\Controllers\ClinicaPanel\PacientesController;
 use App\Http\Controllers\ClinicaPanel\ServiciosController;
 use App\Http\Controllers\ClinicaPanel\EspecialidadController;
 use App\Http\Controllers\ClinicaPanel\CitasController;
+use App\Http\Controllers\ClinicaPanel\GuiaConfiguracionController;
 use App\Http\Controllers\ClinicaPanel\NotificacionController;
-use App\Http\Controllers\ClinicaPanel\MedicoController;
-use App\Http\Controllers\ClinicaPanel\RecepcionController;
 use App\Http\Controllers\ClinicaPanel\LoginController;
 use App\Http\Controllers\ClinicaPanel\SuscripcionController;
 use Illuminate\Foundation\Auth\EmailVerificationRequest;
@@ -19,6 +18,12 @@ Route::middleware('api.key')->post('/login', [LoginController::class, 'login']);
 
 //register
 Route::middleware('api.key')->post('/register', [SuscripcionController::class, 'register']);
+
+//ciudades
+Route::middleware('api.key')->get('/ciudades', [LoginController::class, 'ciudades']);
+
+//planes
+Route::middleware('api.key')->get('/planes', [LoginController::class, 'planes']);
 
 //suscripciones
 Route::middleware('api.key')->get('/suscribirse', [SuscripcionController::class, 'checkout']);
@@ -42,6 +47,8 @@ Route::get('/email/verify/{id}/{hash}', function (Illuminate\Http\Request $reque
 Route::get('/email/verify', function () {
     // return view('verify-email');
 })->name('verification.notice');
+
+Route::middleware('api.key')->get('/verificar-correo/{usuario_id}', [NotificacionController::class, 'verificarCorreo']);
 
 //admin
 Route::middleware('api.key')->get('/index/{usuario_id}', [AdminController::class, 'index']);
@@ -94,6 +101,13 @@ Route::middleware('api.key')->get('/disponibilidad-medico/{medico_id}', [CitasCo
 Route::middleware('api.key')->put('/finalizar-cita/{cita_id}', [CitasController::class, 'update']);
 Route::middleware('api.key')->get('/cancelar-cita/{cita_id}', [CitasController::class, 'cancelar']);
 Route::middleware('api.key')->get('/reporte-citas', [CitasController::class, 'descargarReporteCitas']);
+
+//guia de configuracion
+Route::middleware('api.key')->put('/actualizar-estado/{paso_id}/{usuario_id}', [GuiaConfiguracionController::class, 'actualizar_estado']);
+
+//soporte
+Route::middleware('api.key')->post('/enviar-soporte', [NotificacionController::class, 'EnviarCorreoSoporte']);
+
 
 
 

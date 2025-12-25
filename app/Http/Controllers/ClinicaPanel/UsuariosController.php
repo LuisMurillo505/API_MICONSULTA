@@ -153,7 +153,7 @@ class UsuariosController extends Controller
  *
  * @throws \Exception  Si ocurre cualquier error durante la creación del personal o especialidad
  */
-    public function store_adminMedico(Request $request,$usuario_id){
+    public function store_adminMedico(Request $request,int $usuario_id){
         try{
     
             // Obtener datos del usuario autenticado/admin para saber a qué clínica pertenece
@@ -439,7 +439,7 @@ class UsuariosController extends Controller
  * @throws \Exception
  *         Captura cualquier error inesperado durante la ejecución.
  */
-    public function cambiarpassword(Request $request,$usuario_id){
+    public function cambiarpassword(Request $request,int $usuario_id){
         try{
 
             // Validación de datos del request
@@ -450,7 +450,7 @@ class UsuariosController extends Controller
             ]);
 
             // Buscar usuario
-            $usuario=Usuario::find($usuario_id);
+            $usuario=Usuario::findOrFail($usuario_id);
             if (!$usuario) {
                 return response()->json([
                     'success' => false,

@@ -35,7 +35,7 @@ class RecepcionController extends Controller
  * @param  int $usuario_id  ID del usuario autenticado.
  * @return array            Arreglo con conteos específicos de citas.
  */
-    public function conteoDatos($usuario_id){
+    public function conteoDatos(int $usuario_id){
         
         try{
             // Obtener información del usuario: contiene clinica_id, personal_id, etc.
@@ -83,7 +83,7 @@ class RecepcionController extends Controller
  *
  * @throws \Throwable
  */
-    public function index($usuario_id){
+    public function index(int $usuario_id){
 
         try{
             //Obtener la información detallada del usuario:

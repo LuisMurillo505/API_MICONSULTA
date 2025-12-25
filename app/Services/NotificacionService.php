@@ -56,7 +56,7 @@ class NotificacionService{
         }
     }
 
-    public function notificar_cita($personal_id){
+    public function notificar_cita(int $personal_id){
         try{
            $citas=Citas::Where('personal_id',$personal_id)
             ->where('status_id',1)

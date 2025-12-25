@@ -60,6 +60,7 @@ class UsuarioService
                 'usuario_id'=>$user->id,
                 'clinica'=>$clinicas,
                 'plan_clinica'=>$user->clinicas->suscripcion->plan->nombre,
+                'plan'=>$user->clinicas->suscripcion->plan,
                 'tiempo_plan'=>$user->clinicas->suscripcion->dias_restantes,
                 'clinica_id'=>$user->clinicas->id,
                 'nombre_clinica'=>$user->clinicas->nombre,

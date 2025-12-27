@@ -95,7 +95,7 @@ class TarifaStripeContoller extends Controller
  * @param int $tarifa_id  ID de la tarifa que se desea activar.
  * @return \Illuminate\Http\JsonResponse Respuesta JSON indicando el resultado de la operación.
  */
-    public function update($tarifa_id){
+    public function update(int $tarifa_id){
         try{
              //Desactiva todas las tarifas actuales antes de activar una nueva
             $this->desactivarTarifas();

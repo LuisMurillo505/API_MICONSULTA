@@ -31,6 +31,8 @@ Route::middleware('api.key')->get('/suscripcion/exito', [SuscripcionController::
 Route::middleware('api.key')->get('/suscripcion/cancelado/{usuario_id}', [SuscripcionController::class, 'cancelado']);
 Route::middleware('api.key')->post('/cancelar-suscripcion/{usuario_id}', [SuscripcionController::class, 'cancelarSuscripcion']);
 
+Route::post('/stripe/webhook', [SuscripcionController::class, 'handleWebhook']);
+
 //verificar correo
 Route::get('/email/verify/{id}/{hash}', function (Illuminate\Http\Request $request) {
 

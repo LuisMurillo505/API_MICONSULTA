@@ -12,6 +12,21 @@ use App\Models\Citas;
 use Exception;
 class PlanService{
 
+/**
+ * Verifica si una clínica aún puede crear nuevos usuarios según su plan de suscripción.
+ *
+ * Obtiene el límite de usuarios permitido desde las funciones del plan activo
+ * (función con ID = 2) y lo compara contra el número actual de usuarios activos
+ * registrados en la clínica.
+ *
+ * Si el plan no tiene un límite definido (cantidad = null), se permite crear usuarios
+ * de forma ilimitada.
+ *
+ * @param int $clinica_id ID de la clínica a validar
+ * @return bool Retorna true si la clínica puede crear más usuarios, false si alcanzó el límite
+ *
+ * @throws \Exception Si ocurre un error durante la consulta
+ */
     public function puedeCrearUsuario($clinica_id){
         try{
             $usuariosPermitidos=Clinicas::with(['suscripcion.plan.funciones_planes' => function ($query) {
@@ -35,6 +50,22 @@ class PlanService{
         }
     }
 
+/**
+ * Verifica si una clínica puede crear un nuevo paciente según
+ * el límite definido en su plan de suscripción.
+ *
+ * El método consulta la suscripción activa de la clínica y valida
+ * si el plan tiene asociada la función de creación de pacientes
+ * (funcion_id = 3). Si el plan no tiene límite definido, se permite
+ * crear pacientes de forma ilimitada.
+ *
+ * @param int $clinica_id ID de la clínica a evaluar.
+ *
+ * @return bool Retorna true si la clínica puede crear más pacientes,
+ *              o false si ha alcanzado el límite permitido.
+ *
+ * @throws \Exception Si ocurre un error durante la consulta a la base de datos.
+ */
     public function puedeCrearPaciente($clinica_id){
         try{
             $pacientesPermitidos=Clinicas::with(['suscripcion.plan.funciones_planes' => function ($query) {
@@ -56,6 +87,22 @@ class PlanService{
         }
     }
 
+/**
+ * Verifica si una clínica puede crear un nuevo servicio según su plan de suscripción.
+ *
+ * Este método valida si el plan activo de la clínica permite crear más servicios,
+ * comparando el límite definido en las funciones del plan contra la cantidad de
+ * servicios activos actualmente registrados en la clínica.
+ *
+ * - La función evaluada es la asociada al `funcion_id = 1` (crear servicios).
+ * - Si el plan no define un límite (`cantidad = null`), se permite crear servicios sin restricción.
+ *
+ * @param int $clinica_id ID de la clínica a validar.
+ *
+ * @return bool Retorna true si la clínica puede crear más servicios, false en caso contrario.
+ *
+ * @throws \Exception Si ocurre un error durante la consulta o validación.
+ */
     public function puedeCrearServicio($clinica_id){
         try{
             $serviciosPermitidos=Clinicas::with(['suscripcion.plan.funciones_planes' => function ($query) {
@@ -73,10 +120,26 @@ class PlanService{
             return is_null($permitidos) || $permitidos>$conteoServicios;
 
         }catch(Exception $e){
-
+            throw $e;
         }
     }
 
+/**
+ * Verifica si la clínica aún puede crear nuevas citas según
+ * el límite definido en su plan de suscripción.
+ *
+ * La validación se basa en:
+ * - La función asociada al plan (funcion_id = 4 → creación de citas).
+ * - El número total de citas registradas para la clínica.
+ *
+ * Si el plan no tiene límite definido (cantidad = null),
+ * se permite crear citas de forma ilimitada.
+ *
+ * @param int $clinica_id ID de la clínica a validar.
+ * @return bool Retorna true si puede crear más citas, false si alcanzó el límite.
+ *
+ * @throws \Exception Si ocurre un error durante la consulta.
+ */
     public function puedeCrearCita(int $clinica_id): bool
     {
         try{
@@ -186,7 +249,7 @@ public function puedeSubirArchivosPacientes($clinica_id,$paciente_id){
  *                                
  * @throws \Throwable    
  */
-    public function usuariosPermitidos($clinica_id,$conteoUsuarios){
+    public function usuariosPermitidos(int $clinica_id,int $conteoUsuarios){
          try{    
             $usuariosPermitidos=Clinicas::with(['suscripcion.plan.funciones_planes' => function ($query) {
             $query->where('funcion_id', 2);
@@ -222,7 +285,7 @@ public function puedeSubirArchivosPacientes($clinica_id,$paciente_id){
  *
  * @throws \Throwable           
  */
-    public function serviciosPermitidos($clinica_id,$conteoServicios){
+    public function serviciosPermitidos(int $clinica_id,int $conteoServicios){
          try{    
            $serviciosPermitidos=Clinicas::with(['suscripcion.plan.funciones_planes' => function ($query) {
             $query->where('funcion_id', 1);
@@ -261,7 +324,7 @@ public function puedeSubirArchivosPacientes($clinica_id,$paciente_id){
  *                                  
  * @throws \Throwable               
  */
-    public function pacientesPermitidos($clinica_id,$conteoPacientes){
+    public function pacientesPermitidos(int $clinica_id,int $conteoPacientes){
          try{    
             $pacientesPermitidos=Clinicas::with(['suscripcion.plan.funciones_planes' => function ($query) {
                 $query->where('funcion_id', 3);
@@ -301,7 +364,7 @@ public function puedeSubirArchivosPacientes($clinica_id,$paciente_id){
  *
  * @throws \Throwable            
  */
-    public function citasPermitidos($clinica_id,$conteoCitas){
+    public function citasPermitidos(int $clinica_id,int $conteoCitas){
          try{    
             $citasPermitidos=Clinicas::with(['suscripcion.plan.funciones_planes' => function ($query) {
                 $query->where('funcion_id', 4);
@@ -325,7 +388,32 @@ public function puedeSubirArchivosPacientes($clinica_id,$paciente_id){
         }
     }
 
-    public function desactualizar_usuarios($clinica_id,$plan_nuevo){
+/**
+ * Desactiva usuarios de una clínica cuando el nuevo plan contratado
+ * permite menos usuarios que el plan actual.
+ *
+ * Este método compara el límite de usuarios permitido entre el plan actual
+ * y el nuevo plan. Si el nuevo plan tiene un límite menor y la clínica
+ * excede ese límite, se desactivan los usuarios más recientes hasta
+ * cumplir con la nueva restricción.
+ *
+ * Flujo general:
+ * - Obtiene la clínica y su plan actual.
+ * - Cuenta los usuarios activos de la clínica.
+ * - Obtiene el límite de usuarios del plan actual y del nuevo plan.
+ * - Si el nuevo plan permite menos usuarios y el total activo excede el límite,
+ *   se desactivan los usuarios más recientes.
+ *
+ * @param int $clinica_id  ID de la clínica a evaluar.
+ * @param int $plan_nuevo  ID del nuevo plan que se asignará a la clínica.
+ *
+ * @return void|null
+ *         Retorna null si no es necesario desactivar usuarios
+ *         o si la clínica no existe.
+ *
+ * @throws \Exception En caso de error durante el proceso.
+ */
+    public function desactualizar_usuarios(int $clinica_id,int $plan_nuevo){
 
         try{
 
@@ -390,11 +478,27 @@ public function puedeSubirArchivosPacientes($clinica_id,$paciente_id){
                 
             }
         }catch(Exception $e){
-            return back()->with('error', 'Error: ' . $e->getMessage());
+           throw $e;
         }
     }
 
-    public function desactualizar_servicios($clinica_id,$plan_nuevo){
+/**
+ * Desactiva servicios de una clínica cuando el nuevo plan contratado
+ * permite menos servicios activos que el plan anterior.
+ *
+ * Este método compara el límite de servicios permitido entre el plan actual
+ * y el nuevo plan. Si el nuevo plan permite menos servicios y la clínica
+ * tiene más servicios activos de los permitidos, se desactivan los servicios
+ * más recientes hasta cumplir con el nuevo límite.
+ *
+ * @param int $clinica_id ID de la clínica a evaluar.
+ * @param int $plan_nuevo ID del nuevo plan contratado.
+ *
+ * @return void|null Retorna null si no es necesario desactivar servicios.
+ *
+ * @throws \Exception Si ocurre un error durante el proceso.
+ */
+    public function desactualizar_servicios(int $clinica_id,int $plan_nuevo){
 
         try{
 
@@ -451,11 +555,28 @@ public function puedeSubirArchivosPacientes($clinica_id,$paciente_id){
                 
             }
         }catch(Exception $e){
-            return back()->with('error', 'Error: ' . $e->getMessage());
+           throw $e;
         }
     }
 
-    public function desactualizar_archivos($clinica_id,$plan_nuevo){
+/**
+ * Desactiva archivos de pacientes cuando el nuevo plan contratado
+ * tiene un límite menor de archivos permitidos por paciente.
+ *
+ * Este método compara el plan actual de la clínica con el nuevo plan.
+ * Si el nuevo plan permite menos archivos (función_id = 5), se desactivan
+ * los archivos más recientes por paciente hasta cumplir el nuevo límite.
+ *
+ * La desactivación se realiza cambiando el status_id a 2.
+ *
+ * @param int $clinica_id ID de la clínica a evaluar.
+ * @param int $plan_nuevo ID del nuevo plan contratado.
+ *
+ * @return void|null Retorna null si no hay cambios que aplicar.
+ *
+ * @throws \Exception Si ocurre un error durante el proceso.
+ */
+    public function desactualizar_archivos(int $clinica_id,int $plan_nuevo){
 
         try{
 
@@ -514,10 +635,30 @@ public function puedeSubirArchivosPacientes($clinica_id,$paciente_id){
             }
             
         }catch(Exception $e){
-            return back()->with('error', 'Error: ' . $e->getMessage());
+           throw $e;
         }
     }
 
+/**
+ * Verifica el estado de las suscripciones de todas las clínicas.
+ *
+ * Recorre todas las clínicas registradas y calcula los días restantes
+ * de su suscripción activa. Si los días restantes superan el límite
+ * negativo permitido por el plan (días de espera), la suscripción
+ * se marca como inactiva.
+ *
+ * Lógica:
+ * - Obtiene todas las clínicas.
+ * - Para cada clínica:
+ *   - Obtiene el plan asociado a su suscripción.
+ *   - Calcula los días restantes de vigencia.
+ *   - Si los días restantes son menores o iguales al negativo
+ *     de los días de espera del plan, se desactiva la suscripción.
+ *
+ * @throws \Exception Si ocurre algún error durante el proceso.
+ *
+ * @return void
+ */
     public function verificarSuscripciones(){
         try{
             $clinicas=Clinicas::all();

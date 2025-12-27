@@ -26,7 +26,11 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->alias([
             'api.key' => \App\Http\Middleware\ApiKeyMiddleware::class,
+            'csrf' => \App\Http\Middleware\VerifyCsrfToken::class,
+        ])->validateCsrfTokens(except: [
+            'stripe/webhook', 
         ]);
+        
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //

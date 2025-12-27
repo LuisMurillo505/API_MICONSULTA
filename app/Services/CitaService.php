@@ -35,27 +35,84 @@ class CitaService
         $this->planServices = $planServices;
     }
 
-    //Checa si hay conflicto de horarios con citas
+/**
+ * Verifica si existe un conflicto de horario para una cita médica.
+ *
+ * Este método valida si el personal indicado ya tiene una cita activa
+ * que se solape con el rango de horas proporcionado en la fecha indicada.
+ *
+ * Se considera conflicto cuando:
+ * - La cita existente inicia antes de la hora fin solicitada
+ * - Y finaliza después de la hora inicio solicitada
+ *
+ * @param int $personal_id
+ *        ID del personal (médico) al que se le desea validar disponibilidad.
+ *
+ * @param \Carbon\Carbon $fecha
+ *        Fecha en la que se desea agendar la cita.
+ *
+ * @param \Carbon\Carbon $hora_inicio
+ *        Hora de inicio de la nueva cita.
+ *
+ * @param \Carbon\Carbon $hora_fin
+ *        Hora de fin de la nueva cita.
+ *
+ * @return bool
+ *         Retorna true si existe conflicto de horario,
+ *         false si el horario está disponible.
+ */
     public function conflictoCita(int $personal_id, Carbon $fecha,Carbon $hora_inicio, Carbon $hora_fin):bool{
 
-          // Verificar solapamiento con otras citas
-           return citas::where('personal_id', $personal_id)
-                ->where('status_id',1)
-                ->whereDate('fecha_cita', $fecha->toDateString())
-                ->where(function ($q) use ($hora_inicio, $hora_fin) {
-                    $q->where(function ($q2) use ($hora_inicio, $hora_fin) {
-                        $q2->where('hora_inicio', '<', $hora_fin->format('H:i'))
-                        ->where('hora_fin', '>', $hora_inicio->format('H:i'));
-                    });
-                })->exists();
+        // Verificar solapamiento con otras citas
+        return citas::where('personal_id', $personal_id)
+            ->where('status_id',1)
+            ->whereDate('fecha_cita', $fecha->toDateString())
+            ->where(function ($q) use ($hora_inicio, $hora_fin) {
+                $q->where(function ($q2) use ($hora_inicio, $hora_fin) {
+                    $q2->where('hora_inicio', '<', $hora_fin->format('H:i'))
+                    ->where('hora_fin', '>', $hora_inicio->format('H:i'));
+                });
+            })->exists();
     }
 
+/**
+ * Crea citas médicas recurrentes y, opcionalmente, eventos en Google Calendar.
+ *
+ * Este método permite generar múltiples citas a partir de una fecha inicial,
+ * repitiéndolas según el patrón indicado (diario, semanal, etc.).
+ * Valida disponibilidad del médico, evita conflictos de horario y maneja
+ * transacciones para garantizar consistencia de datos.
+ *
+ * Si ocurre un error (conflicto de cita, falta de disponibilidad o error externo),
+ * se eliminan las citas creadas y los eventos de Google Calendar asociados.
+ *
+ * @param array|null  $data            Datos de la cita:
+ *                                     - medico (int) ID del médico
+ *                                     - paciente (int) ID del paciente
+ *                                     - servicio (int) ID del servicio
+ *                                     - fecha (string) Fecha inicial (Y-m-d)
+ *                                     - hora_inicio (string) Hora de inicio (H:i)
+ *
+ * @param Carbon      $hora_inicio      Hora de inicio base de la cita
+ * @param Carbon      $hora_fin         Hora de fin base de la cita
+ * @param string|null $repetir          Tipo de recurrencia (diaria, semanal, mensual, etc.)
+ * @param int|null    $repeticiones     Número de veces que se repetirá la cita
+ * @param int         $usuario_id       ID del usuario que crea las citas
+ *
+ * @return array                       Arreglo con los IDs de las citas creadas
+ *
+ * @throws \Exception                  Si el médico no tiene disponibilidad
+ *                                     o existe un conflicto con otra cita
+ */
     public function crearCitasRecurrentes(?array $data, Carbon $hora_inicio, Carbon $hora_fin, ?string $repetir, ?int $repeticiones,int $usuario_id ) :array{
         DB::beginTransaction();
         try{
+            // Obtener datos del usuario y clínica
             $datos=$this->usuarioService->DatosUsuario($usuario_id);
             $citasCreadas = [];
             $eventosCreados=[];
+
+            // Asegurar al menos una repetición
             $repeticiones = max(1, (int) $repeticiones);
             $fechaInicial = Carbon::parse($data['fecha']);
 
@@ -73,6 +130,7 @@ class CitaService
                 $usuarioCreador = $this->googleService->usuarioCreador($data['medico'], $datos['clinica_id']);
             }
           
+            // Crear citas según el número de repeticiones
             for ($i = 0; $i < $repeticiones; $i++) {
 
                $fechaActual = $this->calcularFechaRecurrente($fechaInicial, $repetir, $i);
@@ -93,7 +151,7 @@ class CitaService
                 $hora_inicio_actual = Carbon::createFromFormat('H:i', $data['hora_inicio']);
                 $hora_fin_actual = $hora_inicio_actual->copy()->addMinutes($duracionServicio);
 
-                // if ($this->conflictoCita($data['medico'], $fechaActual, $hora_inicio, $hora_fin)) continue;
+                // Validar conflicto con otras citas
                 if ($this->conflictoCita($data['medico'], $fechaActual, $hora_inicio, $hora_fin)) {
 
                     $this->eliminarEventoGoogle($eventosCreados,$citasCreadas, $usuarioCreador);
@@ -143,7 +201,17 @@ class CitaService
    }
 
 /**
- * Calcula la fecha según el tipo de recurrencia
+ * Calcula la fecha correspondiente a una cita recurrente según el tipo de repetición.
+ *
+ * A partir de una fecha inicial, determina la nueva fecha sumando días, semanas
+ * o meses dependiendo del patrón de repetición seleccionado.
+ *
+ * @param Carbon      $fechaInicial Fecha base desde la cual se calculan las repeticiones.
+ * @param string|null $repetir     
+ * @param int         $indice       Índice de la repetición (0 para la primera cita).
+ *
+ * @return Carbon|null Devuelve la fecha calculada para la repetición indicada
+ *                     o null si el tipo de repetición no es válido y no es la primera.
  */
     private function calcularFechaRecurrente(Carbon $fechaInicial, ?string $repetir, int $indice): ?Carbon
     {
@@ -157,15 +225,60 @@ class CitaService
         };
     }
 
+/**
+ * Elimina eventos previamente creados en Google Calendar y borra las citas asociadas en la base de datos.
+ *
+ * Este método se utiliza como mecanismo de rollback cuando ocurre un error
+ * durante la creación de citas recurrentes. Garantiza que no queden eventos
+ * huérfanos en Google Calendar ni registros inconsistentes en la base de datos.
+ *
+ * @param array $eventosCreados  Arreglo de IDs de eventos creados en Google Calendar.
+ * @param array $citasCreadas    Arreglo de IDs de citas creadas en la base de datos.
+ * @param array $usuarioCreador  Información del usuario autenticado en Google Calendar
+ *                               necesario para eliminar los eventos.
+ *
+ * @return void
+ */
     private function eliminarEventoGoogle(array $eventosCreados, array $citasCreadas, array $usuarioCreador){
 
-        foreach ($eventosCreados as $eventoId) {
-            $this->googleService->eliminarEvento($eventoId, $usuarioCreador);
+        try{
+            foreach ($eventosCreados as $eventoId) {
+                $this->googleService->eliminarEvento($eventoId, $usuarioCreador);
+            }
+            Citas::whereIn('id', $citasCreadas)->delete();
+        }catch(Exception $e) {
+            throw $e;
         }
-        Citas::whereIn('id', $citasCreadas)->delete();
-
+       
     }
 
+/**
+ * Genera un reporte estadístico de citas de una clínica dentro de un rango de fechas.
+ *
+ * El rango de fechas puede definirse de las siguientes formas (prioridad en orden):
+ * 1. Por mes específico (YYYY-MM) usando `fecha_mes`
+ * 2. Por semana específica (YYYY-Wxx) usando `fecha_semana`
+ * 3. Por rango de fechas usando `fecha_inicio` y `fecha_fin`
+ * 4. Si no se envía ningún filtro, se toma el día actual por defecto
+ *
+ * El reporte incluye:
+ * - Total de citas finalizadas
+ * - Total de citas canceladas
+ * - Porcentajes de finalizadas y canceladas
+ * - Citas agrupadas por paciente con porcentaje
+ * - Paciente con más citas
+ * - Citas agrupadas por médico con porcentaje
+ * - Médico con más citas
+ *
+ * @param array $datos  Información del usuario autenticado (incluye clinica_id)
+ * @param array $request Parámetros de filtro:
+ *                       - fecha_mes (YYYY-MM)
+ *                       - fecha_semana (YYYY-Wxx)
+ *                       - fecha_inicio (YYYY-MM-DD)
+ *                       - fecha_fin (YYYY-MM-DD)
+ *
+ * @return array
+ */
     public function reporteCitas(array $datos,array $request)
     {
         
@@ -282,14 +395,41 @@ class CitaService
 
     }
 
-    public function graficasCitas(array $reporte){
+/**
+ * Genera las gráficas estadísticas de citas en formato imagen base64
+ * utilizando QuickChart.
+ *
+ * Se generan tres gráficas:
+ * 1. Citas finalizadas vs canceladas.
+ * 2. Citas finalizadas por paciente.
+ * 3. Citas finalizadas por médico.
+ *
+ * @param array $reporte  Arreglo con los datos del reporte de citas.
+ *                        Debe contener:
+ *                        - citas_finalizadas (int)
+ *                        - citas_canceladas (int)
+ *                        - citas_pacientes (Collection)
+ *                        - citas_medico (Collection)
+ *
+ * @return array Retorna un arreglo con las imágenes base64 de las gráficas:
+ *               - chartCitas
+ *               - chartPacientes
+ *               - chartMedico
+ */
+    public function graficasCitas(array $reporte)
+    {
 
+        // Colores reutilizables para las gráficas dinámicas
         $coloresDisponibles = [
             "#198754", "#0d6efd", "#ffc107", "#dc3545", "#6f42c1",
             "#20c997", "#fd7e14", "#6610f2", "#0dcaf0", "#adb5bd"
         ];
 
-        //citas finalizadas y canceladas 
+         /*
+        |--------------------------------------------------------------------------
+        | Gráfica 1: Citas finalizadas vs canceladas
+        |--------------------------------------------------------------------------
+        */
         $chartCitasConfig = [
             "type" => "doughnut",
             "data" => [
@@ -305,11 +445,17 @@ class CitaService
                 ]
             ]
         ];
+
+        // Generar imagen base64 desde QuickChart
         $chartCitasUrl = "https://quickchart.io/chart?c=" . urlencode(json_encode($chartCitasConfig));
         $chartCitasImage = base64_encode(file_get_contents($chartCitasUrl));
         $chartCitas = "data:image/png;base64," . $chartCitasImage;
 
-        //citas por paciente
+         /*
+        |--------------------------------------------------------------------------
+        | Gráfica 2: Citas finalizadas por paciente
+        |--------------------------------------------------------------------------
+        */
         $labels = [];
         $data = [];
         $colores = [];
@@ -349,7 +495,11 @@ class CitaService
         $chartPacientesImage = base64_encode(file_get_contents($chartPacientesUrl));
         $chartPacientes = "data:image/png;base64," . $chartPacientesImage;
 
-        //graficar medicos
+        /*
+        |--------------------------------------------------------------------------
+        | Gráfica 3: Citas finalizadas por médico
+        |--------------------------------------------------------------------------
+        */
         $labels = [];
         $data = [];
         $colores = [];
@@ -389,6 +539,11 @@ class CitaService
         $chartMedicoImage = base64_encode(file_get_contents($chartMedicoUrl));
         $chartMedico = "data:image/png;base64," . $chartMedicoImage;
 
+        /*
+        |--------------------------------------------------------------------------
+        | Retorno de gráficas
+        |--------------------------------------------------------------------------
+        */
 
         return [
             'chartCitas'=>$chartCitas,

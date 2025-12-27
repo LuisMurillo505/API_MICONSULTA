@@ -34,6 +34,25 @@ class SuscripcionService
         $this->planService=$planService;
     }
 
+/**
+ * Verifica el estado de la suscripción asociada al usuario.
+ *
+ * Evalúa si la suscripción de la clínica del usuario está activa o vencida,
+ * considerando el estado actual y los días restantes en relación al período
+ * de espera definido por el plan.
+ *
+ * Si la suscripción ha superado el período de gracia, se actualiza su estado
+ * a vencido automáticamente.
+ *
+ * @param  Usuario  $usuario  Usuario autenticado con relación a clínica y suscripción.
+ * @return array {
+ *     @type string $estado        Estado de la suscripción ('activo' | 'vencido').
+ *     @type string $mensaje       Mensaje descriptivo cuando el plan está vencido.
+ *     @type string $es_personal   Puesto del usuario si pertenece al personal.
+ * }
+ *
+ * @throws \Exception Si ocurre un error durante la verificación.
+ */
     public function verificarSuscripcion($usuario){
         try{
             $suscripcion = $usuario->clinicas->suscripcion ?? null;
@@ -64,8 +83,23 @@ class SuscripcionService
         }
     }
 
-    //obtiene o crea un nuevo cliente en stripe
-    public function crearClienteStripe($usuario):Customer{
+ /**
+ * Crea o recupera un cliente en Stripe a partir de un usuario del sistema.
+ *
+ * - Busca si ya existe un cliente en Stripe usando el correo del usuario.
+ * - Si existe, reutiliza el cliente encontrado.
+ * - Si no existe, crea un nuevo cliente en Stripe con información de la clínica.
+ * - Guarda el `stripe_customer_id` en la clínica asociada al usuario.
+ *
+ * @param  \App\Models\Usuario  $usuario
+ *         Usuario autenticado que pertenece a una clínica.
+ *
+ * @return \Stripe\Customer
+ *         Cliente de Stripe creado o recuperado.
+ *
+ * @throws \Exception
+ *         Cuando ocurre un error al comunicarse con Stripe o al guardar en la base de datos.
+ */    public function crearClienteStripe($usuario):Customer{
         try{
             $Customers = Customer::all([
                 'email' => $usuario->correo,
@@ -96,7 +130,32 @@ class SuscripcionService
         }
     }
 
-    //Manda al checkout de stripe para completar el pago
+/**
+ * Crea una sesión de Checkout en Stripe para la suscripción a un plan.
+ *
+ * Este método genera una sesión de Stripe Checkout en modo suscripción,
+ * asociando el cliente existente y el plan seleccionado. Incluye soporte
+ * para códigos promocionales y define las URLs de éxito y cancelación
+ * apuntando al frontend de la aplicación.
+ *
+ * Flujo general:
+ * - Se crea una sesión de tipo "subscription".
+ * - Se asigna el cliente de Stripe previamente creado.
+ * - Se vincula el precio del plan mediante su `stripe_price_id`.
+ * - Se habilitan códigos de promoción.
+ * - Se configuran las URLs de redirección para éxito y cancelación.
+ *
+ * @param  mixed   $plan
+ *         Objeto del plan que contiene el `stripe_price_id`.
+ * @param  mixed   $stripeCustomer
+ *         Cliente de Stripe (ID o instancia válida) asociado al usuario/clínica.
+ *
+ * @return \Stripe\Checkout\Session
+ *         Sesión de Checkout creada en Stripe.
+ *
+ * @throws \Exception
+ *         Si ocurre un error al crear la sesión en Stripe.
+ */
     public function checkoutSession($plan, $stripeCustomer): Session{
 
         try{
@@ -134,7 +193,22 @@ class SuscripcionService
 
     }
 
-    //activa el plan gratuito
+/**
+ * Activa el plan gratuito para una clínica y su usuario principal.
+ *
+ * Este método asigna el plan gratuito a la suscripción indicada,
+ * activa la suscripción y el usuario, establece la fecha de inicio del plan
+ * y registra un pago con monto cero en el historial de pagos.
+ *
+ * Se utiliza normalmente cuando una clínica inicia por primera vez
+ * o cuando se reactiva con un plan sin costo.
+ *
+ * @param  mixed   $suscripcion  Instancia de la suscripción asociada a la clínica
+ * @param  mixed   $usuario      Usuario principal de la clínica
+ * @return void
+ *
+ * @throws \Exception Si ocurre un error durante la activación o el guardado
+ */
     public function activarPlanGratis($suscripcion,$usuario):void{
         try{
             
@@ -160,7 +234,29 @@ class SuscripcionService
        
     }
 
-    //obtiene datos de la session de stipe
+/**
+ * Obtiene y procesa la información de una sesión de Stripe Checkout.
+ *
+ * A partir del ID de la sesión, recupera la suscripción asociada,
+ * la factura más reciente y los datos del pago realizado,
+ * incluyendo monto, estatus, descuento y fechas.
+ *
+ * @param string $session_id ID de la sesión de Stripe Checkout.
+ *
+ * @return array{
+ *     stripeSubscriptionId: string,
+ *     stripePriceId: string,
+ *     invoiceNumber: string|null,
+ *     descuento: float|null,
+ *     montoPagado: float,
+ *     status: string,
+ *     fechaPago: string,
+ *     stripeCustomerId: string
+ * }
+ *
+ * @throws \Exception Si ocurre un error al comunicarse con Stripe
+ *                    o al obtener la información de la sesión.
+ */
     public function stripeSession($session_id):array{
         try{
              // Obtener detalles de la sesión desde Stripe
@@ -217,6 +313,24 @@ class SuscripcionService
         }
     }
 
+/**
+ * Calcula la comisión de Stripe, el IVA correspondiente y el monto neto recibido.
+ *
+ * Este método obtiene la tarifa activa de Stripe desde la base de datos y calcula:
+ * - La comisión de Stripe (porcentaje + monto fijo).
+ * - El IVA aplicado a la comisión.
+ * - El monto neto que recibe la clínica después de comisiones.
+ *
+ * @param float $monto Monto bruto del pago realizado por el cliente.
+ *
+ * @return array{
+ *     net_amount: float,   // Monto neto después de comisiones e IVA
+ *     comision: float,     // Total de comisión + IVA
+ *     tarifa_id: int       // ID de la tarifa de Stripe utilizada
+ * }
+ *
+ * @throws \Exception Si ocurre un error al calcular la tarifa.
+ */
     public function calcularTarifa($monto){
         try{
             $tarifa=StripeTarifas::where('status_id','1')->first();
@@ -236,6 +350,25 @@ class SuscripcionService
             throw $e;
         }
     }
+
+/**
+ * Guarda un pago en la base de datos si no existe previamente
+ * y actualiza el estado del usuario.
+ *
+ * Este método:
+ * - Verifica si la factura ya fue registrada usando el invoiceNumber
+ * - Calcula la comisión y el monto neto
+ * - Registra el pago en la tabla payments
+ * - Activa al usuario después del pago
+ *
+ * @param array|null $session  Datos obtenidos desde Stripe (factura, monto, descuento, etc.)
+ * @param mixed      $usuario  Usuario autenticado que realizó el pago
+ * @param mixed      $plan     Plan asociado al pago
+ *
+ * @return void
+ *
+ * @throws \Exception
+ */
 
     public function savePayment(?array $session,$usuario,$plan){
         try{
@@ -265,6 +398,25 @@ class SuscripcionService
         }
     }
 
+/**
+ * Activa una suscripción de pago para la clínica del usuario.
+ *
+ * Este método:
+ * - Actualiza los límites del sistema según el nuevo plan
+ *   (usuarios, servicios y archivos).
+ * - Asigna el nuevo plan a la suscripción de la clínica.
+ * - Guarda el ID de la suscripción de Stripe.
+ * - Marca la suscripción como activa.
+ * - Establece la fecha de inicio del plan.
+ *
+ * @param array|null $session  Datos obtenidos de Stripe (ID de suscripción, etc.)
+ * @param mixed      $usuario  Usuario autenticado asociado a la clínica
+ * @param mixed      $plan     Plan contratado
+ *
+ * @return void
+ *
+ * @throws \Exception
+ */
     public function activarSuscripcion(?array $session, $usuario,$plan){
         try{
             $suscripcion_clinica=Suscripcion::find($usuario->clinicas->suscripcion->id);
@@ -283,6 +435,17 @@ class SuscripcionService
         }
     }
 
+/**
+ * Maneja el evento invoice.paid de Stripe.
+ *
+ * Registra el pago en la base de datos, calcula comisiones,
+ * activa la suscripción de la clínica y actualiza su estado.
+ *
+ * @param object $event Evento recibido desde Stripe (webhook)
+ * @return void
+ *
+ * @throws \Exception
+ */
     public function invoicePaid($event){
         try{
             $invoice = $event->data->object;
@@ -326,6 +489,21 @@ class SuscripcionService
         }
     }
 
+/**
+ * Maneja el evento de Stripe cuando un pago de factura falla (invoice.payment_failed).
+ *
+ * - Obtiene la factura desde el evento de Stripe.
+ * - Localiza la clínica asociada al customer de Stripe.
+ * - Busca al usuario administrador de la clínica.
+ * - Actualiza el estado de la suscripción a "pago fallido".
+ * - Envía un correo notificando el problema de pago.
+ *
+ * @param object $event Evento recibido desde el webhook de Stripe
+ * @return void
+ *
+ * @throws \Exception
+ */
+
     public function invoicePaymentFailed($event){
         try{
             $invoice = $event->data->object;
@@ -358,6 +536,21 @@ class SuscripcionService
         }
     }
 
+/**
+ * Maneja el evento customer.subscription.updated de Stripe.
+ *
+ * Este método se ejecuta cuando una suscripción es actualizada en Stripe.
+ * Actualmente valida si la suscripción fue marcada para cancelarse
+ * al final del período pero aún sigue activa.
+ *
+ * En ese caso, se actualiza el estado de la suscripción de la clínica
+ * a "Por Terminar".
+ *
+ * @param object $event Evento recibido desde el webhook de Stripe
+ * @return void
+ *
+ * @throws \Exception
+ */
     public function customerSubscriptionUpdated($event){
         try{
             $invoice = $event->data->object;
@@ -388,6 +581,20 @@ class SuscripcionService
             throw $e;
         }
     }
+
+/**
+ * Maneja el evento customer.subscription.deleted de Stripe.
+ *
+ * Se ejecuta cuando una suscripción es eliminada en Stripe.
+ * Verifica si el cliente aún tiene suscripciones activas:
+ *  - Si tiene alguna activa, mantiene la suscripción de la clínica como activa.
+ *  - Si no tiene ninguna activa, marca la suscripción como vencida
+ *    y notifica al administrador de la clínica por correo.
+ *
+ * @param object $event Evento recibido desde el webhook de Stripe
+ * @return void
+ * @throws \Exception
+ */
 
      public function customerSubscriptionDeleted($event){
         try{

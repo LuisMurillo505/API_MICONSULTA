@@ -27,13 +27,11 @@ use Illuminate\Support\Facades\Log;
 class AdminController extends Controller 
 {
     protected $usuarioService;
-    protected $citaService;
     protected $planService;
     
     public function __construct(UsuarioService $usuarioServices, PlanService $planServices)
     {
         $this->usuarioService = $usuarioServices;
-        // $this->citaService = $citaServices;
         $this->planService = $planServices;
     }
 

@@ -132,7 +132,7 @@ class PlanController extends Controller
  * @param  \Illuminate\Http\Request  $request  Objeto de la solicitud HTTP que contiene los datos validados.
  * @return \Illuminate\Http\JsonResponse  Respuesta JSON con el estado de la operación.
  */
-    public function update($plan_id,Request $request){
+    public function update(int $plan_id,Request $request){
         try{
             //Validación de los datos del request
             $validated=$request->validate([
@@ -218,7 +218,7 @@ class PlanController extends Controller
  * @param  int  $funcion_id  ID del registro en la tabla `funciones_planes` que se desea actualizar.
  * @return \Illuminate\Http\JsonResponse  Respuesta JSON con el estado de la operación.
  */ 
-    public function updateFuncion(Request $request,$funcion_id){
+    public function updateFuncion(Request $request,int $funcion_id){
         try{
 
             // Validación de los datos recibidos

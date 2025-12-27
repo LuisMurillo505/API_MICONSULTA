@@ -48,7 +48,7 @@ class PuestoController extends Controller
      /**
      * Cambia el estado del puesto entre activo e inactivo.
      */
-    public function update($id){
+    public function update(int $id){
         try{
             $puesto=Puesto::find($id);
             if($puesto->estado=='activo'){
@@ -78,7 +78,7 @@ class PuestoController extends Controller
     /**
      * Elimina un puesto por su ID.
      */
-    public function delete($id){
+    public function delete(int $id){
         try{
             $puesto=Puesto::find($id);
             if ($puesto){

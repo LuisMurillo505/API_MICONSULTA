@@ -30,6 +30,22 @@ class SuscripcionController extends Controller
         $this->suscripcionService=$suscripcionService;
     }
     
+/**
+ * Registra una nueva clínica y su usuario administrador.
+ *
+ * Flujo general:
+ * - Valida los datos enviados desde el formulario.
+ * - Verifica que el correo no esté registrado previamente.
+ * - Obtiene el plan seleccionado.
+ * - Registra el usuario y la clínica.
+ * - Crea la suscripción asociada.
+ * - Registra al médico administrador.
+ * - Si el plan es gratuito, lo activa inmediatamente.
+ * - Si el plan es de pago, prepara el cliente en Stripe.
+ *
+ * @param \Illuminate\Http\Request $request
+ * @return \Illuminate\Http\JsonResponse
+ */
     public function register(Request $request)
     {
         try {
@@ -82,6 +98,7 @@ class SuscripcionController extends Controller
                 'inicio_plan' => now(),
             ]);
 
+            //Registro del médico administrador
             $adminMedico=$this->usuarioService->store_AdminMedico($validated,$usuario->id);
 
             // Si el plan es gratuito, activar de inmediato
@@ -116,6 +133,18 @@ class SuscripcionController extends Controller
         }
     }
 
+/**
+ * Inicia el proceso de Checkout con Stripe para un plan de suscripción.
+ *
+ * - Valida que el plan exista y tenga un price_id de Stripe
+ * - Obtiene el usuario
+ * - Crea u obtiene el cliente de Stripe
+ * - Genera una sesión de Stripe Checkout
+ * - Retorna la URL de pago al frontend
+ *
+ * @param \Illuminate\Http\Request $request
+ * @return \Illuminate\Http\JsonResponse
+ */
     public function checkout(Request $request)
     {
         try{
@@ -156,6 +185,22 @@ class SuscripcionController extends Controller
         
     }
 
+/**
+ * Maneja el flujo de éxito después de completar un pago en Stripe.
+ *
+ * - Obtiene el usuario que realizó el pago.
+ * - Recupera la sesión de Stripe usando el session_id.
+ * - Identifica el plan contratado.
+ * - Cancela suscripciones activas anteriores del cliente.
+ * - Guarda el pago en la base de datos.
+ * - Activa la nueva suscripción.
+ * - Envía correo de confirmación al usuario.
+ *
+ * @param \Illuminate\Http\Request $request
+ * @return \Illuminate\Http\JsonResponse
+ *
+ * @throws \Throwable
+ */
     public function exito(Request $request)
     {
        
@@ -233,6 +278,19 @@ class SuscripcionController extends Controller
         }
     }
 
+
+/**
+ * Maneja el flujo cuando un usuario cancela el proceso de pago en Stripe.
+ *
+ * Si el usuario ya cuenta con algún pago previo, se notifica el error
+ * y se solicita iniciar sesión nuevamente.
+ * Si no existe ningún pago previo, se activa automáticamente el plan Gratuito.
+ *
+ * @param int $usuario_id ID del usuario que canceló el pago
+ * @return \Illuminate\Http\JsonResponse
+ *
+ * @throws \Throwable Si ocurre un error inesperado durante el proceso
+ */
     public function cancelado(int $usuario_id)
     {
         try{
@@ -275,6 +333,20 @@ class SuscripcionController extends Controller
         
     }
 
+/**
+ * Cancela una suscripción activa en Stripe marcándola para terminar
+ * al final del período actual.
+ *
+ * - Busca al usuario por ID.
+ * - Obtiene la suscripción asociada a la clínica.
+ * - Marca la suscripción de Stripe como `cancel_at_period_end = true`.
+ * - Actualiza el estado local de la suscripción a "Por terminar".
+ *
+ * @param int $usuario_id ID del usuario que solicita la cancelación
+ * @return \Illuminate\Http\JsonResponse
+ *
+ * @throws \Throwable Si ocurre un error inesperado
+ */
     public function cancelarSuscripcion(int $usuario_id){
         try{
             $usuario=Usuario::findOrFail($usuario_id);
@@ -313,17 +385,39 @@ class SuscripcionController extends Controller
         }
     }
 
-     public function handleWebhook(Request $request)
+/**
+ * Maneja los eventos entrantes del webhook de Stripe.
+ *
+ * Este método:
+ * - Verifica la firma del webhook para asegurar que el evento proviene de Stripe.
+ * - Registra el tipo de evento recibido.
+ * - Ejecuta la lógica correspondiente según el tipo de evento:
+ *   - invoice.paid
+ *   - invoice.payment_failed
+ *   - customer.subscription.updated
+ *   - customer.subscription.deleted
+ *
+ * @param \Illuminate\Http\Request $request
+ * @return \Illuminate\Http\JsonResponse
+ */
+    public function handleWebhook(Request $request)
     {
+        // Configurar la API Key de Stripe
         Stripe::setApiKey(config('services.stripe.secret'));
 
+        // Secret del webhook configurado en Stripe
         $endpoint_secret = config('services.stripe.webhook_secret');
+        // Contenido del request
         $payload = $request->getContent();
+        // Header de firma enviado por Stripe
         $sig_header = $request->server('HTTP_STRIPE_SIGNATURE');
         $event = null;
 
 
-        // Verificación de firma
+        /**
+         * Verificación de la firma del webhook
+         * Esto garantiza que el evento realmente proviene de Stripe
+         */
         try {
             $event = Webhook::constructEvent(
                 $payload, $sig_header, $endpoint_secret
@@ -337,33 +431,56 @@ class SuscripcionController extends Controller
             return response()->json(['error' => 'Invalid signature'], 400);
         }
 
-        // Manejo de eventos
+        
+        /**
+         * Manejo de eventos de Stripe
+         */
         switch ($event->type) {
            
+            /**
+             * Pago exitoso de una factura
+             * Se registra el pago y se reactiva la suscripción
+             */
             case 'invoice.paid':
 
                 $this->suscripcionService->invoicePaid($event);
                 break;
-                       
+              
+            /**
+             * Fallo en el cobro de una factura
+             * Se marca la suscripción como problemática y se notifica al usuario
+             */ 
             case 'invoice.payment_failed':
                
                 $this->suscripcionService->invoicePaymentFailed($event);
                 break;
 
+            /**
+             * Actualización de la suscripción
+             * Se usa para detectar cancelaciones al final del período
+             */
             case 'customer.subscription.updated':
                 
                 $this->suscripcionService->customerSubscriptionUpdated($event);
                 break;
 
+            /**
+             * Eliminación de una suscripción
+             * Se valida si aún existen suscripciones activas antes de desactivar el plan
+             */
             case 'customer.subscription.deleted':
                 
                 $this->suscripcionService->customerSubscriptionDeleted($event);
                 break;
 
+            /**
+             * Eventos no manejados explícitamente
+             */
             default:
                 Log::info("Evento no manejado: " . $event->type);
         }
 
+        // Respuesta estándar requerida por Stripe
         return response()->json(['status' => 'success']);
     }
 

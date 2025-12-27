@@ -24,7 +24,28 @@ class PacienteService
         $this->gcs = $gcs;
     }
 
-     public function crearDireccion(?array $datos,$paciente_id): ?Direcciones
+/**
+ * Crea o actualiza la dirección asociada a un paciente.
+ *
+ * Este método recibe un arreglo opcional de datos de dirección y el ID del paciente.
+ * Si al menos uno de los campos (calle, ciudad o localidad) contiene información:
+ *  - Si el paciente ya tiene una dirección registrada, esta se actualiza.
+ *  - Si no tiene dirección, se crea una nueva y se asocia al paciente.
+ *
+ * Si no se proporciona ningún dato de dirección válido, no se realiza ninguna acción.
+ *
+ * @param array|null $datos Arreglo con los datos de la dirección. Puede contener:
+ *                          - 'calle' (string)
+ *                          - 'ciudad' (string)
+ *                          - 'localidad' (string)
+ * @param int $paciente_id ID del paciente al que se asociará la dirección.
+ *
+ * @return Direcciones|null Retorna la dirección creada o actualizada.
+ *                          Retorna null si no se proporcionan datos de dirección.
+ *
+ * @throws \Exception Lanza una excepción si ocurre un error durante el proceso.
+ */
+    public function crearDireccion(?array $datos,$paciente_id): ?Direcciones
     {
       
       try
@@ -35,14 +56,17 @@ class PacienteService
               'ciudad' => $datos['ciudad'] ?? '',
               'localidad' => $datos['localidad'] ?? ''];
 
+        // Verificar si al menos un campo de la dirección fue proporcionado
         if ($datos['calle'] || $datos['ciudad'] || $datos['localidad']) {
           if($paciente !== null && $paciente->direccion)
           {
+            // Actualizar dirección existente
             $paciente->direccion()->update($data);
 
             return $paciente->direccion ?? null;
           }else
           {
+            // Crear nueva dirección
             return $paciente->direccion()->create($data);
           }
            
@@ -50,10 +74,23 @@ class PacienteService
         return null;
       }catch(Exception $e){
         throw $e;
-      }
-
-       
+      }  
     }
+/**
+ * Guarda la fotografía de un paciente en el almacenamiento público.
+ *
+ * - Elimina la fotografía anterior si existe.
+ * - Genera un nombre único basado en el timestamp.
+ * - Mueve el archivo a la ruta correspondiente dentro de storage.
+ *
+ * @param \Illuminate\Http\UploadedFile $file  Archivo de imagen a guardar.
+ * @param string $ruta                       Carpeta base donde se almacenará la imagen.
+ * @param string|null $oldphoto              Nombre de la fotografía anterior (si existe).
+ *
+ * @return string                            Nombre del archivo guardado.
+ *
+ * @throws \Exception                       Si ocurre un error durante el proceso.
+ */
     public function guardarFoto($file, $ruta,$oldphoto): string
     {
       try{
@@ -70,6 +107,18 @@ class PacienteService
         
     }
 
+  /**
+ * Calcula la edad actual a partir de una fecha de nacimiento.
+ *
+ * Este método utiliza Carbon para determinar la edad en años completos
+ * tomando como referencia la fecha actual del sistema.
+ *
+ * @param string $fecha_nac Fecha de nacimiento en formato válido para Carbon (Y-m-d recomendado).
+ *
+ * @return int Edad calculada en años.
+ *
+ * @throws \Exception Si la fecha no es válida o ocurre un error al parsearla.
+ */
     public function calcularEdad(string $fecha_nac): int
     {
       try{
@@ -80,6 +129,18 @@ class PacienteService
       }
     }
 
+/**
+ * Crea un nuevo paciente en la base de datos.
+ *
+ * Este método recibe un arreglo con los datos del paciente y
+ * crea un registro utilizando el modelo Pacientes.
+ *
+ * @param array $data  Datos del paciente (nombre, apellidos, fecha_nacimiento, etc.).
+ *
+ * @return Pacientes   Instancia del paciente creado.
+ *
+ * @throws \Exception  Si ocurre algún error durante la creación del registro.
+ */
     public function crearPaciente(array $data): Pacientes
     {
       try{
@@ -89,7 +150,23 @@ class PacienteService
       }
     }
 
-     public function crearObservaciones(?array $observaciones, int $paciente_id): void
+/**
+ * Registra observaciones asociadas a un paciente.
+ *
+ * Recorre un arreglo opcional de observaciones y guarda únicamente aquellas
+ * que no estén vacías o compuestas solo por espacios. Cada observación válida
+ * se almacena como un registro independiente relacionado con el paciente.
+ *
+ * @param array|null $observaciones  Arreglo de observaciones en texto plano.
+ *                                   Puede ser null o vacío.
+ * @param int        $paciente_id    ID del paciente al que pertenecen
+ *                                   las observaciones.
+ *
+ * @return void
+ *
+ * @throws \Exception Si ocurre algún error durante el guardado en base de datos.
+ */
+    public function crearObservaciones(?array $observaciones, int $paciente_id): void
     {
       try{
           if ($observaciones && is_array($observaciones)) {
@@ -107,6 +184,24 @@ class PacienteService
       }  
     }
 
+/**
+ * Crea o actualiza la somatometría de un paciente.
+ *
+ * Este método registra o actualiza los datos antropométricos del paciente
+ * (peso, estatura, IMC y perímetros).  
+ * Solo se guarda información si al menos uno de los valores es proporcionado.
+ *
+ * Si el paciente ya cuenta con un registro de somatometría, se actualiza;
+ * de lo contrario, se crea uno nuevo.
+ *
+ * @param array|null $datos Datos de somatometría del paciente.
+ *                        
+ * @param int $paciente_id ID del paciente.
+ *
+ * @throws \Exception Si ocurre un error durante el proceso.
+ *
+ * @return void
+ */
     public function crearSomatometria(array $datos, int $paciente_id): void
     {
       try{
@@ -140,7 +235,22 @@ class PacienteService
        
     }
 
-     public function crearFamiliares(array $datos, int $paciente_id): void
+/**
+ * Crea o actualiza los familiares asociados a un paciente.
+ *
+ * Este método procesa arreglos de datos enviados desde un formulario,
+ * permitiendo crear nuevos familiares o actualizar los existentes,
+ * junto con su dirección correspondiente.
+ *
+ * @param array $datos  Arreglo con la información de los familiares
+ *                           
+ * @param int   $paciente_id  ID del paciente al que pertenecen los familiares
+ *
+ * @return void
+ *
+ * @throws \Exception
+ */
+    public function crearFamiliares(array $datos, int $paciente_id): void
     {
       try{
             $nombreFamiliar = $datos['nombre_familiar'] ?? [];
@@ -202,6 +312,31 @@ class PacienteService
        
     }
 
+/**
+ * Crea o actualiza la historia clínica de un paciente.
+ *
+ * Este método registra toda la información clínica del paciente, incluyendo:
+ * - Datos de identificación hospitalaria
+ * - Motivo de consulta y enfermedad actual
+ * - Antecedentes patológicos y no patológicos
+ * - Antecedentes heredofamiliares
+ * - Antecedentes gineco-obstétricos
+ * - Signos vitales
+ * - Exploración física
+ * - Estudios de laboratorio e imagen
+ * - Diagnóstico y plan terapéutico
+ *
+ * Si el paciente ya cuenta con un historial clínico, la información se actualiza.
+ * En caso contrario, se crea un nuevo registro asociado al paciente.
+ *
+ * @param array|null $validated  Datos validados provenientes del formulario de historia clínica.
+ *                               Puede contener valores nulos o booleanos según el campo.
+ * @param int        $paciente_id ID del paciente al que se asociará la historia clínica.
+ *
+ * @return void
+ *
+ * @throws \Exception Si ocurre algún error al buscar el paciente o al guardar la información.
+ */
     public function historiaClinica(?array $validated,$paciente_id){
         try{
           $paciente=pacientes::find($paciente_id);
@@ -308,6 +443,22 @@ class PacienteService
     //   }
     // }
 
+/**
+ * Sube un archivo asociado a un paciente a Google Cloud Storage
+ * y registra su información en la base de datos.
+ *
+ * El archivo se guarda dentro de una carpeta estructurada por clínica
+ * y paciente, y posteriormente se crea el registro en la tabla
+ * de archivos del paciente.
+ *
+ * @param \Illuminate\Http\UploadedFile $archivo  Archivo enviado desde el formulario.
+ * @param \App\Models\Pacientes         $paciente Modelo del paciente asociado al archivo.
+ * @param array                         $clinica  Datos de la clínica (incluye nombre).
+ *
+ * @return void
+ *
+ * @throws \Exception Si ocurre un error durante la carga o el guardado.
+ */
      public function ArchivosPacientes($archivo,$paciente,$clinica)
     {
       try{

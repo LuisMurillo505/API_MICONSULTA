@@ -340,6 +340,23 @@ class UsuarioService
         }
     }
 
+/**
+ * Actualiza la disponibilidad semanal de un miembro del personal.
+ *
+ * Elimina toda la disponibilidad existente del personal y registra
+ * únicamente los días activos con horas válidas.
+ *
+ * @param array|null $dias
+ *  Arreglo asociativo con los días de la semana como clave.
+ *
+ * @param int $personal_id
+ *  ID del personal al que pertenece la disponibilidad.
+ *
+ * @return void
+ *
+ * @throws \Exception
+ *  Lanza excepción si la hora de inicio es mayor o igual a la hora de fin.
+ */
     public function update_disponibilidad(?array $dias, int $personal_id):void{
         try{
 
@@ -369,7 +386,32 @@ class UsuarioService
         }
     }
 
-    // //Checa si el personal tiene disponibilidad en un dia especifico y en un rango de horas
+/**
+ * Verifica si un rango horario específico se encuentra dentro
+ * de la disponibilidad del personal en un día determinado.
+ *
+ * Obtiene el día de la semana a partir de la fecha proporcionada
+ * y valida que la hora de inicio y fin estén dentro del rango
+ * configurado para ese día.
+ *
+ * @param int $personal_id
+ *  ID del personal a validar.
+ *
+ * @param Carbon $fecha
+ *  Fecha de la cita (se usa para determinar el día de la semana).
+ *
+ * @param Carbon $hora_inicio
+ *  Hora de inicio de la cita.
+ *
+ * @param Carbon $hora_fin
+ *  Hora de fin de la cita.
+ *
+ * @return bool
+ *  Retorna true si el horario está dentro de la disponibilidad,
+ *  false si no existe disponibilidad o el horario es inválido.
+ *
+ * @throws \Exception
+ */
     public function disponibilidad_dia(int $personal_id, Carbon $fecha, Carbon $hora_inicio, Carbon $hora_fin){
         try{
             $diaSemana=strtolower($fecha->locale('es')->dayName);
@@ -389,7 +431,20 @@ class UsuarioService
     }
 
 
-    // //analiza si el personal no tiene otra cita agendada en una fecha y hora especifica
+/**
+ * Verifica si un médico tiene citas que se crucen con el horario solicitado.
+ *
+ * Este método valida que el médico seleccionado no tenga citas activas
+ * en la misma fecha cuyo horario se empalme con el intervalo solicitado.
+ * En caso de existir un conflicto, se lanza una excepción.
+ *
+ * @param array|null $datos  Datos de la cita (debe incluir 'medico' y 'fecha')
+ * @param Carbon     $hora_inicio Hora de inicio solicitada
+ * @param Carbon     $hora_fin    Hora de fin solicitada
+ *
+ * @throws Exception Si el médico no está disponible en el horario indicado
+ * @return void
+ */
     public function personal_citas(?array $datos,$hora_inicio,$hora_fin):void{
       // Checar disponibilidad del médico
         $medico_citas = citas::where('personal_id', $datos['medico'])

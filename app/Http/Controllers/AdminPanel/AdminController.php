@@ -169,7 +169,7 @@ class AdminController extends Controller
  * @throws \Throwable
  *     Si ocurre un error al obtener los datos desde la base de datos.
  */
-    public function detalle_clinica($clinica_id){
+    public function detalle_clinica(int $clinica_id){
         try{
             // Información general de la clínica y su suscripción
             $clinica = Clinicas::with(['suscripcion','suscripcion.plan', 'suscripcion.status'])
@@ -245,7 +245,7 @@ class AdminController extends Controller
  * @throws \Throwable
  *     Si ocurre un error al obtener los datos desde la base de datos.
  */
-    public function index_detalleusuario($usuario_id){
+    public function index_detalleusuario(int $usuario_id){
         try{
             // Obtener usuario con su estado y clínica asociada
             $usuarioP=Usuario::with('status','clinicas')->find($usuario_id);
@@ -307,7 +307,7 @@ class AdminController extends Controller
  *     Si ocurre un error al obtener los datos desde la base de datos o servicios externos.
  */
 
-    public function index_detallepaciente($paciente_id){
+    public function index_detallepaciente(int $paciente_id){
    
         try{
             // Catálogo general de ciudades
@@ -359,43 +359,6 @@ class AdminController extends Controller
         }
     }
 
-    /**
-     * Búsqueda de pacientes por ID o estado.
-     */
-    // public function buscarPaciente(Request $request){
-        
-    //     $conteoDatos = $this->conteoDatos();
-
-    //     $Lista_paciente=Pacientes::all();
-
-    //     $query=Pacientes::query();
-
-    //     $query = Pacientes::all();
-
-    //     if($request->filled('paciente')){
-    //         $query->where('id',$request->paciente);
-    //     }
-
-    //     if($request->filled('estado')){
-    //         $query->whereHas('status',function($q) use($request){
-    //             $q->where('descripcion',$request->estado);
-    //         });
-    //     }
-        
-    //    // Filtrar por nombre (autocomplete)
-    //     if ($request->ajax()) {
-    //         $pacientes = $query->where('nombre', 'like', $request->nombre . '%')
-    //             ->limit(10)
-    //             ->get(['id', 'nombre', 'foto', 'clinica_id']);
-
-                
-    //         return response()->json($pacientes);
-    //     }
-    //     // $pacientes = $query->get(); 
-
-    //     return view('admin.pacientes', array_merge(compact('pacientes','Lista_paciente')));
-    // }
-
 /** Expediente
  * 
  * Obtiene el historial clínico (expediente médico) completo de un paciente.
@@ -414,7 +377,7 @@ class AdminController extends Controller
  * @throws \Throwable
  *     Si ocurre un error al obtener los datos desde la base de datos o durante el filtrado.
  */
-    public function index_expediente($paciente_id, Request $request){
+    public function index_expediente(int $paciente_id, Request $request){
 
         try{
 
@@ -509,14 +472,13 @@ class AdminController extends Controller
  * - Detalles de la cita (servicio, personal, clínica y estatus)
  *
  * @param  int  $cita_id        ID de la cita médica.
- * @param  int  $paciente_id    ID del paciente asociado a la cita.
  *
  * @return \Illuminate\Http\JsonResponse  Respuesta en formato JSON con los datos obtenidos o el error ocurrido.
  *
  * @throws \Throwable  Si ocurre algún error durante la obtención de los datos.
  *
  */
-     public function index_detalleCita($cita_id){
+     public function index_detalleCita(int $cita_id){
     
         try{
             //Obtiene la información completa de la cita, incluyendo sus relaciones:
@@ -707,7 +669,7 @@ class AdminController extends Controller
  *
  * @throws \Throwable Si ocurre un error durante la obtención de datos.
  */
-    public function detalle_plan($plan_id){
+    public function detalle_plan(int $plan_id){
         try{
             
             //obtiene un plan en especifico
@@ -859,7 +821,7 @@ class AdminController extends Controller
  *
  * @throws \Throwable Si ocurre un error durante la obtención de los datos.
  */
-    public function detalle_reporte($plan_id,$status_id){
+    public function detalle_reporte(int $plan_id,int $status_id){
         try{
 
             // Obtiene las clínicas con sus suscripciones que coinciden con el plan y estado especificados

@@ -5,18 +5,21 @@ namespace App\Http\Controllers\ClinicaPanel;
 use App\Http\Controllers\Controller;
 use Exception;
 use App\Services\UsuarioService;
+use App\Services\PlanService;
 use App\Models\Citas;
 
 
 class RecepcionController extends Controller
 {
     protected $usuarioService;
+    protected $planService;
 
      /**
      * Constructor que inyecta el servicio de usuarios.
      */
-    public function __construct(UsuarioService $usuarioServices){
+    public function __construct(UsuarioService $usuarioServices, PlanService $planService){
         $this->usuarioService=$usuarioServices;    
+        $this->planService=$planService;    
     }  
 
 /**
@@ -61,8 +64,12 @@ class RecepcionController extends Controller
                 $q->where('clinica_id', $datos['clinica_id']);
             })->where('status_id', 4)->count();
 
+            // === CITAS PERMITIDAS ===
+            $conteoCitasP=$this->planService->citasPermitidos($datos['clinica_id'],$conteoCitas);
+
+
             // Retornar todos los conteos como arreglo asociativo
-            return compact('conteoCitas', 'conteoActivas', 'conteoFinalizadas', 'conteoCanceladas');
+            return compact('conteoCitas', 'conteoActivas', 'conteoFinalizadas', 'conteoCanceladas','conteoCitasP');
         }catch(Exception $e){
             throw $e;
         }
@@ -94,6 +101,7 @@ class RecepcionController extends Controller
 
             //Obtener conteos relacionados a las citas del usuario:
             $conteoDatos=$this->conteoDatos($usuario_id);
+            
 
             //Retorna la respuesta en formato JSON con los datos recopilados.
             return response()->json([

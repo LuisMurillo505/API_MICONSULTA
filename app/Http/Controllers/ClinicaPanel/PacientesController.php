@@ -364,15 +364,15 @@ class PacientesController extends Controller
 
             // Obtener expediente clínico
             if($cita_id!=0){
-                $expediente=Expedientes::with(['cita.personal','paciente','cita','cita.servicio'])
-                ->whereHas('paciente', function($q) use($paciente_id){
+                $expediente=Expedientes::with(['cita.personal','cita.paciente','cita','cita.servicio'])
+                ->whereHas('cita.paciente', function($q) use($paciente_id){
                     $q->where('id',$paciente_id);
                 })->whereHas('cita',function($q) use($cita_id){
                     $q->where('id',$cita_id);
                 })->orderby('id','desc')->get();
             }else{
-                $expediente=Expedientes::with(['cita.personal','paciente','cita','cita.servicio'])
-                ->whereHas('paciente', function($q) use($paciente_id){
+                $expediente=Expedientes::with(['cita.personal','cita.paciente','cita','cita.servicio'])
+                ->whereHas('cita.paciente', function($q) use($paciente_id){
                     $q->where('id',$paciente_id);
                 })->orderby('id','desc')->get();
             }

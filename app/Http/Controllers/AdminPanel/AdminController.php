@@ -381,12 +381,12 @@ class AdminController extends Controller
 
         try{
 
-             // Obtener paciente y su clínica asociada
+            // Obtener paciente y su clínica asociada
             $paciente=Pacientes::with('clinicas')->find($paciente_id);
 
             // Obtener expedientes del paciente con relaciones relevantes
-            $expediente=Expedientes::with(['paciente','cita','cita.servicio','personal', 'personal.especialidad'])
-                ->whereHas('paciente', function($q) use($paciente_id){
+            $expediente=Expedientes::with(['cita.paciente','cita','cita.servicio','cita.personal', 'cita.personal.especialidad'])
+                ->whereHas('cita.paciente', function($q) use($paciente_id){
                     $q->where('id',$paciente_id);
                 })->orderBy('id','desc')->get();
 
@@ -397,14 +397,14 @@ class AdminController extends Controller
             // Personal médico de la clínica (puesto_id = 2)
             $personal_medico = Personal::whereHas('usuario', function($q) use($paciente) {
                 $q->where('clinica_id', $paciente->clinica_id);
-            })->with('usuario.clinicas')->where('puesto_id', 2)->get();
+            })->with('usuario.clinicas')->where('puesto_id', '!=','1')->get();
 
             // Servicios disponibles en la clínica
             $servicios = Servicio::where('clinica_id', $paciente->clinica_id)->get();
 
             // Configurar consulta base para aplicar filtros
-            $query = Expedientes::with(['paciente','cita.servicio', 'personal.especialidad'])
-                ->whereHas('paciente', function ($q) use ($paciente_id) {
+            $query = Expedientes::with(['cita.paciente','cita.servicio', 'cita.personal.especialidad'])
+                ->whereHas('cita.paciente', function ($q) use ($paciente_id) {
                     $q->where('id', $paciente_id);
                 });
 
@@ -412,7 +412,9 @@ class AdminController extends Controller
 
             // Filtro: médico
             if ($request->filled('medico')) {
-                $query->where('personal_id', $request->medico ?? null);
+                $query->whereHas('cita.personal', function($q)use($request){
+                    $q->where('id',$request->medico);
+                });
                 $medico = Personal::find($request->medico ?? null);
                 $filtrobusqueda[] = "Médico: " . ($medico ? $medico->nombre ?? null : "Desconocido");
             }
@@ -483,7 +485,7 @@ class AdminController extends Controller
         try{
             //Obtiene la información completa de la cita, incluyendo sus relaciones:
             //servicios,paciente,personal,status,clinicas
-            $cita=Citas::with(['servicio','personal','paciente','paciente.clinicas','status'])
+            $cita=Citas::with(['servicio','personal','paciente','paciente.clinicas','status','tipocita'])
                 ->where('id','=',$cita_id)->first();
             
             // Obtiene todas las observaciones médicas registradas para el paciente.
@@ -493,9 +495,9 @@ class AdminController extends Controller
             $familiar_paciente=Familiar_paciente::where('paciente_id',$cita->paciente_id)->first();
         
              //Recupera el expediente clínico correspondiente a la cita médica.
-            $expediente=Expedientes::where('cita_id',$cita_id)->get();
+            $expediente=Expedientes::with('cita')->where('cita_id',$cita_id)->get();
 
-          
+                
 
             //Retorna la respuesta en formato JSON con los datos recopilados.
             return response()->json([

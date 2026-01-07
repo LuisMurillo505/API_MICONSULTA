@@ -99,6 +99,7 @@ Route::middleware('api.key')->get('/citas/{usuario_id}', [AdminController::class
 Route::middleware('api.key')->get('/createcita/{clinica_id}', [AdminController::class, 'index_createcita']);
 Route::middleware('api.key')->get('/calendario/{usuario_id}', [AdminController::class, 'index_calendario']);
 Route::middleware('api.key')->post('/crear-cita', [CitasController::class, 'store']);
+Route::middleware('api.key')->post('/crear-citarapida', [CitasController::class, 'store_citarapida']);
 Route::middleware('api.key')->get('/disponibilidad-medico/{medico_id}', [CitasController::class, 'disponibilidad']);
 Route::middleware('api.key')->put('/finalizar-cita/{cita_id}', [CitasController::class, 'update']);
 Route::middleware('api.key')->get('/cancelar-cita/{cita_id}', [CitasController::class, 'cancelar']);

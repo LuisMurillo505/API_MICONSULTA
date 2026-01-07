@@ -162,6 +162,7 @@ class CitaService
 
                 // Crear cita
                 $cita = citas::create([
+                    'tipocita_id'=>1,
                     'personal_id' => $data['medico'],
                     'paciente_id' => $data['paciente'],
                     'servicio_id' => $data['servicio'],

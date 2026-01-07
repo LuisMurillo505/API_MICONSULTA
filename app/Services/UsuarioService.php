@@ -67,6 +67,7 @@ class UsuarioService
                 'puesto_usuario'=>$user->personal?->puesto?->descripcion ?? null,
                 'foto_personal'=>$user->personal->foto ?? null,
                 'personal_id'=>$user->personal->id ?? null,
+                'personal_usuario'=>$user->personal ?? null,
                 'Nombre_usuario'=>$user->personal->nombre ?? null,
                 'notificaciones'=>Notificaciones::where('personal_id','=',$user->personal->id ?? null)->orderBy('id','desc')->get() ?? null,
                 'notificaciones_no_leidas'=>Notificaciones::where('estado',1)->where('personal_id',$user->personal->id ?? null)->count() ?? null

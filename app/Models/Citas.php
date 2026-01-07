@@ -19,12 +19,18 @@ class Citas extends Model
         'status_id',
         'event_google_id',
         'google_owner_id',
+        'tipocita_id',
     ];
 
     // Si deseas trabajar con fechas automáticamente
     protected $dates = ['created_at', 'updated_at', 'fecha_cita'];
 
     // Relación con la tabla 'personal' (personal_id)
+
+    public function tipocita()
+    {
+        return $this->belongsTo(Tipocita::class, 'tipocita_id');
+    }
     public function personal()
     {
         return $this->belongsTo(Personal::class, 'personal_id');

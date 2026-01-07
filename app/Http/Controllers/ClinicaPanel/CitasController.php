@@ -124,6 +124,76 @@ class CitasController extends Controller
         }
     }
 
+    public function store_citarapida(Request $request)
+    {
+        try {
+
+            // Obtener datos del usuario y clínica
+            $datos=$this->usuarioService->DatosUsuario($request->usuario_id);
+
+            // Validación de los campos de entrada
+            $validated = $request->validate([
+                'medico' => 'required|integer',
+                'paciente' => 'required|integer',
+                'servicio' => 'required|integer',
+                'fecha' => 'required|date',
+                'hora_inicio' => 'required|date_format:H:i',
+                'resultados'=>'required|string',
+            ]);
+
+            // Validar límite de citas según el plan
+            if (!$this->planService->puedeCrearCita($datos['clinica_id'])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Limite de citas alcanzadas',
+                    'error'=> 'LIMITE_CITAS'
+                ], 404);   
+            }
+
+            // Calcular hora de inicio y fin de la cita
+            $duracionServicio = Servicio::find($validated['servicio'])->duracion;
+            $hora_inicio = Carbon::createFromFormat('H:i', $validated['hora_inicio']);
+            $hora_fin = $hora_inicio->copy()->addMinutes($duracionServicio);
+
+            $cita = citas::create([
+                'tipocita_id'=>2,
+                'personal_id' => $validated['medico'],
+                'paciente_id' => $validated['paciente'],
+                'servicio_id' => $validated['servicio'],
+                'fecha_cita'  => $validated['fecha'],
+                'hora_inicio' => $hora_inicio->format('H:i'),
+                'hora_fin'    => $hora_fin->format('H:i'),
+                'status_id'   => 3,
+                'created_at'  => now(),
+                'updated_at'  => now()
+            ]);
+
+             //crear el expediente clinico
+            Expedientes::create([
+                'cita_id'=>$cita->id,
+                'motivo_consulta'=>$validated['resultados'],
+                // 'objetivo'=>null,
+                // 'proceso'=>null,
+                // 'resultados'=>$validated['resultados'],
+                'fecha'=>now()->toDateString()
+            ]);
+            
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Cita Rapida Creada con Exito.',
+            ]);
+           
+
+        } catch (Exception $e) {
+             return response()->json([
+                'success' => false,
+                'message' => 'Ocurrió un error',
+                'error' => $e->getMessage(),
+            ], 500);  
+        }
+    }
+
 /**
  * Obtiene la disponibilidad de un médico para una fecha específica.
  *
@@ -242,8 +312,6 @@ class CitasController extends Controller
     
             //crear el expediente clinico
             Expedientes::create([
-                'personal_id'=>$cita->personal_id,
-                'paciente_id'=>$cita->paciente_id,
                 'cita_id'=>$cita_id,
                 'objetivo'=>$validated['objetivo'],
                 'proceso'=>$validated['proceso'],

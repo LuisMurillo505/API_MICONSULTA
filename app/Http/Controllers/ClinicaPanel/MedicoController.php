@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use Carbon\Carbon;
 use App\Models\Citas;
 use App\Models\Pacientes;
+use App\Models\Personal;
+use App\Models\Servicio;
 use App\Services\UsuarioService;
 use App\Services\NotificacionService;
 use App\Services\PlanService;
@@ -65,7 +67,10 @@ class MedicoController extends Controller
             $q->where('personal_id', $datos['personal_id']);
         })->where('status_id', 4)->count();
 
-        return compact('conteoCitas','conteoActivas','conteoFinalizadas','conteoCanceladas');
+        // === CITAS PERMITIDAS ===
+        $conteoCitasP=$this->planService->citasPermitidos($datos['clinica_id'],$conteoCitas);
+
+        return compact('conteoCitas','conteoActivas','conteoFinalizadas','conteoCanceladas','conteoCitasP');
     }
 
 /**
@@ -94,6 +99,14 @@ class MedicoController extends Controller
             // Obtener la información relacionada a la guía de usuario:
             $datosGuia = $this->usuarioService->obtenerDatosGuia($usuario_id);
 
+            $pacientesform=Pacientes::where('clinica_id',$datos['clinica_id'])->get();
+
+            $medicoForm=Personal::whereHas('usuario',function($q) use($datos){
+                $q->where('clinica_id',$datos['clinica_id']);
+            })->where('puesto_id','!=',1)->get();
+
+            $serviciosForm=Servicio::with('status')->where('clinica_id',$datos['clinica_id'])->get();
+
             //Retorna la respuesta en formato JSON con los datos recopilados.
             return response()->json([
                 'success' => true,
@@ -101,6 +114,7 @@ class MedicoController extends Controller
                     $datos,
                     $datosGuia,
                     $conteoDatos,
+                    compact('pacientesform','medicoForm','serviciosForm')
                 )
             ]);
         }catch(\Throwable $e){
@@ -239,19 +253,21 @@ class MedicoController extends Controller
                 ->map(function ($cita){
                     return[
                         'id' => $cita->id,
-                        'fecha_citaFormato'=>Carbon::parse($cita->fecha_cita)->locale('es')->isoFormat('D [de] MMMM [de] YYYY'),
-                        'fecha_cita' => $cita->fecha_cita,  
-                        'hora_inicio' => $cita->hora_inicio,
-                        'hora_fin' => $cita->hora_fin,
-                        'paciente_id'=>$cita->paciente->id, 
-                        'nombre_paciente' => $cita->paciente->nombre,
-                        'apellidoP_paciente' => $cita->paciente->apellido_paterno,
-                        'apellidoM_paciente' => $cita->paciente->apellido_materno,
-                        'nombre_medico' => $cita->personal->nombre,
-                        'apellidoP_medico' => $cita->personal->apellido_paterno,
-                        'apellidoM_medico' => $cita->personal->apellido_materno,
-                        'servicio' => $cita->servicio->descripcion,
-                        'status' => $cita->status->descripcion
+                        'fecha_citaFormato'=>Carbon::parse($cita->fecha_cita ?? null)->locale('es')->isoFormat('D [de] MMMM [de] YYYY'),
+                        'fecha_cita' => $cita->fecha_cita ?? null,  
+                        'hora_inicio' => $cita->hora_inicio ?? null,
+                        'hora_fin' => $cita->hora_fin ?? null,
+                        'paciente_id'=>$cita->paciente->id ?? null,
+                        'nombre_paciente' => $cita->paciente->nombre ?? null,
+                        'alias'=>$cita->paciente->alias ?? null,
+                        'apellidoP_paciente' => $cita->paciente->apellido_paterno ?? null,
+                        'apellidoM_paciente' => $cita->paciente->apellido_materno ?? null,
+                        'nombre_medico' => $cita->personal->nombre ?? null,
+                        'apellidoP_medico' => $cita->personal->apellido_paterno ?? null,
+                        'apellidoM_medico' => $cita->personal->apellido_materno ?? null,
+                        'servicio' => $cita->servicio->descripcion ?? null,
+                        'status' => $cita->status->descripcion ?? null, 
+                        'tipocita' => $cita->tipocita->id ?? null  
                     ];
                 });
 

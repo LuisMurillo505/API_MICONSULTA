@@ -139,6 +139,15 @@ class AdminController extends Controller
             //Obtener los conteos y estadísticas relacionadas con la clínica
             $conteoDatos = $this->conteoDatos($usuario_id);
 
+            $pacientesform=Pacientes::where('clinica_id',$datos['clinica_id'])->get();
+
+            $medicoForm=Personal::whereHas('usuario',function($q) use($datos){
+                $q->where('clinica_id',$datos['clinica_id']);
+            })->where('puesto_id','!=',1)->get();
+
+            $serviciosForm=Servicio::with('status')->where('clinica_id',$datos['clinica_id'])->get();
+
+
             $adminMedico=false;
             if($datos['personal_id']){
                 $adminMedico=true;
@@ -155,7 +164,7 @@ class AdminController extends Controller
                     (array)$datos,
                     (array)$datosGuia,
                     (array)$conteoDatos,
-                    compact('adminMedico','especialidad'))
+                    compact('adminMedico','especialidad','pacientesform','medicoForm','serviciosForm'))
                     
             ]);   
         }catch(\Throwable $e){
@@ -785,7 +794,7 @@ class AdminController extends Controller
             
             // Obtener el personal que cumple con:
             //    a) Está asignado a un usuario con clinica_id y status_id = 1.
-            //    b) Tiene un puesto_id = 2 (medico).
+            //    b) Tiene un puesto_id = 2 (medico) o administrador.
             $personal=Personal::whereHas('usuario',function($q) use($clinica_id){
                 $q->where('clinica_id',$clinica_id)
                     ->where('status_id',1);
@@ -856,7 +865,8 @@ class AdminController extends Controller
                         'apellidoP_medico' => $cita->personal->apellido_paterno ?? null,
                         'apellidoM_medico' => $cita->personal->apellido_materno ?? null,
                         'servicio' => $cita->servicio->descripcion ?? null,
-                        'status' => $cita->status->descripcion ?? null  
+                        'status' => $cita->status->descripcion ?? null, 
+                        'tipocita' => $cita->tipocita->id ?? null  
                     ];
                 });
 

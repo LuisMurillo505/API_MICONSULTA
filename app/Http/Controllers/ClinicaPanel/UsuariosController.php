@@ -10,12 +10,11 @@ use App\Services\PlanService;
 use Illuminate\Http\Request;
 use App\Models\Usuario;
 use App\Models\Clinicas;
-use App\Services\RegisterLoginService;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Mail;
 use Exception;
-use Illuminate\Support\Facades\Log;
+// use Illuminate\Support\Facades\Log;
 /**
  * AdminController - Controlador para gestionar la administracion
  */
@@ -94,6 +93,11 @@ class UsuariosController extends Controller
                 'update_at'=>now()
             ]);
 
+            if ($request->hasFile('photo')) {
+                $foto = $this->usuarioService->guardarFoto($request->file('photo'), 
+                        $datos['clinica_id']);
+            }
+
             // Crear registro de personal asociado
             $personal=Personal::create([
                 'nombre' => $request->nombre,
@@ -104,7 +108,7 @@ class UsuariosController extends Controller
                 'cedula_profesional' => $request->cedula_profesional,
                 'telefono' => $request->telefono,
                 'puesto_id' => $request->puesto,
-                'foto'=>$request->foto ?? null,
+                'foto'=>$foto ?? null,
                 'usuario_id'=>$usuario->id,
                 'created_at'=>now(),
                 'updated_at'=>now()
@@ -232,15 +236,21 @@ class UsuariosController extends Controller
                     'error' => 'usuario no existe',
                 ], 500);               
              }
+
+            $foto = $personal->foto ?? null;
+            if ($request->hasFile('photo')) {
+                $foto = $this->usuarioService->guardarFoto($request->file('photo'), 
+                        $personal->usuario->clinicas->id,$foto);
+            }
         
-              // Actualizar los datos del usuario
-                $personal->update([
-                    'especialidad_id' => $request->especialidad,
-                    'cedula_profesional' => $request->cedula_profesional,
-                    'telefono' => $request->telefono,
-                    'foto' => $request->foto ?? null, // Foto actualizada si fue subida
-                    'updated_at' => now()
-                ]);
+            // Actualizar los datos del usuario
+            $personal->update([
+                'especialidad_id' => $request->especialidad,
+                'cedula_profesional' => $request->cedula_profesional,
+                'telefono' => $request->telefono,
+                'foto' => $foto ?? null, // Foto actualizada si fue subida
+                'updated_at' => now()
+            ]);
 
             //guardar disponibilidad si se proporciona
             if($request->input('dias')){
@@ -300,13 +310,19 @@ class UsuariosController extends Controller
                     'error'   => 'clinica_not_found'
                 ], 404);
             }
+            
+            $foto = $clinica->foto ?? null;
+            if ($request->hasFile('photo')) {
+                $foto = $this->usuarioService->guardarFotoClinica($request->file('photo'), 
+                        $clinica->id,$foto);
+            }
 
             // Actualizar datos principales de la clínica
             $clinica->update([
                 'nombre'=>$validated['nombre_clinica'],
                 'telefono'=>$validated['telefono_clinica'],
                 'RFC'=>$validated['rfc'] ?? null,
-                'foto'=>$request->foto ?? null,
+                'foto'=>$foto ?? null,
             ]);
 
             // Actualizar dirección 

@@ -15,7 +15,7 @@ use App\Services\UsuarioService;
 use App\Models\Pacientes;
 use App\Models\Expedientes;
 use App\Services\GoogleCloudStorageService;
-use Barryvdh\DomPDF\Facade\Pdf;
+// use Barryvdh\DomPDF\Facade\Pdf;
 use Exception;
 use Illuminate\Support\Facades\Log;
 
@@ -76,9 +76,14 @@ class PacientesController extends Controller
                     'error'=> 'LIMITE_PACIENTES'
                 ], 404);         
             }
-           
+
             // Calcular edad
             $edad = $this->pacienteService->calcularEdad($request->fecha_nacimiento ?? null);
+
+            if ($request->hasFile('photo')) {
+                $foto = $this->pacienteService->guardarFoto($request->file('photo'), 
+                        $datos['clinica_id']);
+            }
 
             // Crear paciente
             $paciente = $this->pacienteService->crearPaciente([
@@ -93,7 +98,7 @@ class PacientesController extends Controller
                 'curp'=>$request->curp ?? null,
                 'nss'=>$request->nss ?? null,
                 'status_id' => 1,
-                'foto' => $request->foto ?? null,
+                'foto' => $foto ?? null,
                 'telefono' => $request->telefono_paciente ?? null,
                 'created_at' => now(),
                 'updated_at' => now(),
@@ -182,14 +187,11 @@ class PacientesController extends Controller
             } 
             
             // Manejar la foto
-            // $foto = $paciente->foto ?? null;
-
-            // if ($request->hasFile('photo')) {
-            //     // Subir la nueva foto
-            //     if ($request->hasFile('photo')) {
-            //         $foto = $this->pacienteService->guardarFoto($request->file('photo'), $datos['nombre_clinica'],$foto);
-            //     }  
-            // }
+            $foto = $paciente->foto ?? null;
+            if ($request->hasFile('photo')) {
+                $foto = $this->pacienteService->guardarFoto($request->file('photo'), 
+                        $paciente->clinicas->id,$foto);
+            }
 
             // Actualizar datos del paciente
             $paciente->update([
@@ -202,7 +204,8 @@ class PacientesController extends Controller
                 'telefono'=>$request->telefono_paciente ?? null,
                 'curp'=>$request->curp ?? null,
                 'nss'=>$request->nss ?? null,
-                'foto' => $request->foto ?? null,
+                // 'foto' => $request->foto ?? null,
+                'foto' => $foto,
                 'updated_at' => now(),
             ]);
 
@@ -230,6 +233,7 @@ class PacientesController extends Controller
             ]);
 
         } catch (Exception $e) {
+            Log::error($e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Ocurrió un error',

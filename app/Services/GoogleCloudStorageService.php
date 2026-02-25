@@ -8,7 +8,8 @@ class GoogleCloudStorageService
 {
 
     protected $storage;
-    protected $bucket;
+    protected $bucketFiles;
+    protected $bucketPhotos;
 
     public function __construct(){
          $this->storage = new StorageClient([
@@ -16,11 +17,12 @@ class GoogleCloudStorageService
             'keyFilePath' => env('GOOGLE_CLOUD_KEY_FILE'),
         ]);
 
-        $this->bucket = $this->storage->bucket(env('GOOGLE_CLOUD_STORAGE_BUCKET'));
+        $this->bucketFiles = $this->storage->bucket(env('GOOGLE_CLOUD_STORAGE_BUCKET_FILES'));
+        $this->bucketPhotos= $this->storage->bucket(env('GOOGLE_CLOUD_STORAGE_BUCKET_PHOTOS'));
     }
 
 /**
- * Sube un archivo a un bucket de almacenamiento (ej. Google Cloud Storage).
+ * Sube un archivo a un bucket de almacenamiento (Google Cloud Storage).
  *
  * Este método toma un archivo local, lee su contenido y lo sube al bucket
  * configurado, guardándolo en la ruta de destino especificada.
@@ -40,7 +42,36 @@ class GoogleCloudStorageService
  */
     public function upload(string $filePath,string $destinationPath){
 
-         $this->bucket->upload(
+         $this->bucketFiles->upload(
+            file_get_contents($filePath), // Cargar el contenido del archivo
+            ['name' => $destinationPath] // Definir la ruta de destino
+        );
+
+        return $destinationPath;
+    }
+
+/**
+ * Sube una foto del paciente a un bucket de almacenamiento (Google Cloud Storage).
+ *
+ * Este método toma un archivo local, lee su contenido y lo sube al bucket
+ * configurado, guardándolo en la ruta de destino especificada.
+ *
+ * @param string $filePath
+ * Ruta local completa del archivo que se desea subir.
+ *
+ * @param string $destinationPath
+ * Ruta y nombre con el que se almacenará el archivo dentro del bucket.
+ *
+ * @return string
+ * Devuelve la ruta de destino del archivo dentro del bucket.
+ *
+ * @throws \Exception
+ * Puede lanzar una excepción si el archivo no existe o ocurre un error
+ * durante la subida al bucket.
+ */
+    public function uploadPhotos(string $filePath,string $destinationPath){
+
+         $this->bucketPhotos->upload(
             file_get_contents($filePath), // Cargar el contenido del archivo
             ['name' => $destinationPath] // Definir la ruta de destino
         );
@@ -81,7 +112,7 @@ class GoogleCloudStorageService
  */
     public function getSignedUrl(string $path, int $minutes = 10)
     {
-        $object = $this->bucket->object($path);
+        $object = $this->bucketFiles->object($path);
 
         return $object->signedUrl(
             now()->addMinutes($minutes),
@@ -100,7 +131,20 @@ class GoogleCloudStorageService
  */
     public function delete(string $path)
     {
-        $object = $this->bucket->object($path);
+        $object = $this->bucketFiles->object($path);
+        $object->delete();
+    }
+
+    /**
+ * Elimina una foto de paciente del bucket de Google Cloud Storage.
+ *
+ * @param string $path Ruta del archivo dentro del bucket
+ *
+ * @return void
+ */
+    public function deletePhoto(string $path)
+    {
+        $object = $this->bucketPhotos->object($path);
         $object->delete();
     }
 

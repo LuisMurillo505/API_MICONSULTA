@@ -83,7 +83,7 @@ class CitasController extends Controller
                 'medico' => 'required|integer',
                 'paciente' => 'required|integer',
                 'servicio' => 'required|integer',
-                'fecha' => 'required|date',
+                'fecha' => 'required|date|after_or_equal:today',
                 'hora_inicio' => 'required|date_format:H:i'
             ]);
 

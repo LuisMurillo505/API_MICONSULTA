@@ -8,12 +8,12 @@ use Exception;
 use Carbon\Carbon;
 use App\Models\Pacientes;
 use App\Models\Somatometria_Paciente;
-use App\Models\Clinicas;
+// use App\Models\Clinicas;
 use App\Models\Direcciones;
 use App\Models\Familiar_paciente;
 use App\Models\ArchivosPaciente;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
+// use Illuminate\Support\Facades\Storage;
 
 class PacienteService
 {
@@ -76,36 +76,7 @@ class PacienteService
         throw $e;
       }  
     }
-/**
- * Guarda la fotografía de un paciente en el almacenamiento público.
- *
- * - Elimina la fotografía anterior si existe.
- * - Genera un nombre único basado en el timestamp.
- * - Mueve el archivo a la ruta correspondiente dentro de storage.
- *
- * @param \Illuminate\Http\UploadedFile $file  Archivo de imagen a guardar.
- * @param string $ruta                       Carpeta base donde se almacenará la imagen.
- * @param string|null $oldphoto              Nombre de la fotografía anterior (si existe).
- *
- * @return string                            Nombre del archivo guardado.
- *
- * @throws \Exception                       Si ocurre un error durante el proceso.
- */
-    public function guardarFoto($file, $ruta,$oldphoto): string
-    {
-      try{
-        // Eliminar foto antigua si existe
-        if ($oldphoto && Storage::disk('public')->exists($ruta.'/pacientes/' . $oldphoto)) {
-          Storage::disk('public')->delete($ruta.'/pacientes/' . $oldphoto);
-        }
-        $nombre = time().'.'.$file->getClientOriginalExtension();
-        $file->move(storage_path("app/public/$ruta/pacientes"), $nombre);
-        return $nombre;
-      }catch(Exception $e){
-        throw $e;
-      }
-        
-    }
+  
 
   /**
  * Calcula la edad actual a partir de una fecha de nacimiento.
@@ -483,6 +454,44 @@ class PacienteService
 
       }
     
+    }
+
+/**
+ * Guarda la fotografía de un paciente en el almacenamiento público.
+ *
+ * - Elimina la fotografía anterior si existe.
+ * - Genera un nombre único basado en el timestamp.
+ * - Mueve el archivo a la ruta correspondiente dentro de storage.
+ *
+ * @param \Illuminate\Http\UploadedFile $file  Archivo de imagen a guardar.
+ * @param string $ruta                       Carpeta base donde se almacenará la imagen (nombre de la clinica).
+ * @param string|null $oldphoto              Nombre de la fotografía anterior (si existe).
+ *
+ * @return string                            Nombre del archivo guardado.
+ *
+ * @throws \Exception                       Si ocurre un error durante el proceso.
+ */
+
+    public function guardarFoto($file, $ruta,$oldphoto=null): string
+    {
+      try{
+        $nombre = time().'.'.$file->getClientOriginalExtension();
+        $path = "{$ruta}/pacientes/" . $nombre;
+
+        // Eliminar foto antigua si existe
+        if ($oldphoto) {
+            $old="{$ruta}/pacientes/" . $oldphoto;
+            $this->gcs->deletePhoto($old);
+        }
+
+        $this->gcs->uploadPhotos($file->getRealPath(), $path);
+
+        return $nombre;
+      }catch(Exception $e){
+        Log::error($e->getMessage());
+        throw $e;
+      }
+        
     }
 
 }

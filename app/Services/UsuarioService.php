@@ -9,18 +9,24 @@ use Carbon\Carbon;
 use App\Models\Personal;
 use App\Models\PasoGuia;
 use App\Models\ProgresoUsuarioGuia;
-use App\Models\Direcciones;
 use App\Models\Notificaciones;
 use App\Models\Especialidad;
 use App\Models\Clinicas;
 use App\Models\Citas;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Storage;
 use App\Models\Disponibilidad;
-use Request;
+use Illuminate\Support\Facades\Log;
+
 
 class UsuarioService
 {
+
+    protected $gcs;
+
+    public function __construct(GoogleCloudStorageService $gcs)
+    {
+        $this->gcs = $gcs;
+    }
 /**
  * Obtiene los datos completos de un usuario, incluyendo su clínica, plan y notificaciones.
  *
@@ -256,37 +262,49 @@ class UsuarioService
         }
     
     }
-    // public function guardarFoto($file, $ruta,$oldphoto): string
-    // {
-    //   try{
-    //     // Eliminar foto antigua si existe
-    //     if ($oldphoto && Storage::disk('public')->exists($ruta.'/usuarios/' . $oldphoto)) {
-    //       Storage::disk('public')->delete($ruta.'/usuarios/' . $oldphoto);
-    //     }
-    //     $nombre = time().'.'.$file->getClientOriginalExtension();
-    //     $file->move(storage_path("app/public/$ruta/usuarios"), $nombre);
-    //     return $nombre;
-    //   }catch(Exception $e){
-    //     throw $e;
-    //   }
-        
-    // }
+    public function guardarFoto($file, $ruta,$oldphoto=null): string
+    {
+      try{
+        $nombre = time().'.'.$file->getClientOriginalExtension();
+        $path = "{$ruta}/usuarios/" . $nombre;
 
-    // public function guardarFotoClinica($file, $ruta,$oldphoto): string
-    // {
-    //   try{
-    //     // Eliminar foto antigua si existe
-    //     if ($oldphoto && Storage::disk('public')->exists($ruta.'/clinica/' . $oldphoto)) {
-    //       Storage::disk('public')->delete($ruta.'/clinica/' . $oldphoto);
-    //     }
-    //     $nombre = time().'.'.$file->getClientOriginalExtension();
-    //     $file->move(storage_path("app/public/$ruta/clinica"), $nombre);
-    //     return $nombre;
-    //   }catch(Exception $e){
-    //     throw $e;
-    //   }
+        // Eliminar foto antigua si existe
+        if ($oldphoto) {
+            $old="{$ruta}/usuarios/" . $oldphoto;
+            $this->gcs->deletePhoto($old);
+        }
+
+        $this->gcs->uploadPhotos($file->getRealPath(), $path);
+
+        return $nombre;
+      }catch(Exception $e){
+        Log::error($e->getMessage());
+        throw $e;
+      }
         
-    // }
+    }
+
+    public function guardarFotoClinica($file, $ruta,$oldphoto=null): string
+    {
+      try{
+        $nombre = time().'.'.$file->getClientOriginalExtension();
+        $path = "{$ruta}/clinica/" . $nombre;
+
+        // Eliminar foto antigua si existe
+        if ($oldphoto) {
+            $old="{$ruta}/clinica/" . $oldphoto;
+            $this->gcs->deletePhoto($old);
+        }
+
+        $this->gcs->uploadPhotos($file->getRealPath(), $path);
+
+        return $nombre;
+      }catch(Exception $e){
+        Log::error($e->getMessage());
+        throw $e;
+      }
+        
+    }
 
 /**
  * Registra la disponibilidad semanal de un médico (personal) reemplazando cualquier disponibilidad previa.
@@ -448,7 +466,7 @@ class UsuarioService
  */
     public function personal_citas(?array $datos,$hora_inicio,$hora_fin):void{
       // Checar disponibilidad del médico
-        $medico_citas = citas::where('personal_id', $datos['medico'])
+        $medico_citas = Citas::where('personal_id', $datos['medico'])
             ->where('status_id',1)
             ->whereDate('fecha_cita', $datos['fecha'])
             ->get();         

@@ -181,7 +181,7 @@ class CitasController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Cita Rapida Creada con Exito.',
+                'message' => 'Atencion rapida Creada con Exito.',
             ]);
            
 

@@ -245,6 +245,10 @@ class UsuariosController extends Controller
         
             // Actualizar los datos del usuario
             $personal->update([
+                'nombre' => $request->nombre,
+                'apellido_paterno' => $request->apellido_paterno,
+                'apellido_materno' => $request->apellido_materno,
+                'fecha_nacimiento' => $request->fecha_nacimiento,
                 'especialidad_id' => $request->especialidad,
                 'cedula_profesional' => $request->cedula_profesional,
                 'telefono' => $request->telefono,

@@ -139,13 +139,16 @@ class AdminController extends Controller
             //Obtener los conteos y estadísticas relacionadas con la clínica
             $conteoDatos = $this->conteoDatos($usuario_id);
 
-            $pacientesform=Pacientes::where('clinica_id',$datos['clinica_id'])->get();
+            $pacientesform=Pacientes::where('clinica_id',$datos['clinica_id'])
+            ->where('status_id',1)->get();
 
             $medicoForm=Personal::whereHas('usuario',function($q) use($datos){
                 $q->where('clinica_id',$datos['clinica_id']);
+                $q->where('status_id',1);
             })->where('puesto_id','!=',1)->get();
 
-            $serviciosForm=Servicio::with('status')->where('clinica_id',$datos['clinica_id'])->get();
+            $serviciosForm=Servicio::with('status')->where('clinica_id',$datos['clinica_id'])
+            ->where('status_id',1)->get();
 
 
             $adminMedico=false;
@@ -438,8 +441,9 @@ class AdminController extends Controller
 
             // Aplicar el filtro de autocompletado por nombre y limitar resultados
             $pacientes = $query->where('nombre', 'like', $request->nombre . '%')
+                ->where('status_id',1)
                 ->limit(5)
-                ->get(['id', 'nombre', 'foto', 'clinica_id']);
+                ->get(['id', 'nombre', 'apellido_paterno','apellido_materno','foto', 'clinica_id']);
 
             // Retornar la lista de pacientes encontrados
             return response()->json($pacientes);

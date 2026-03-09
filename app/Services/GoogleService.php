@@ -2,9 +2,7 @@
 
 namespace App\Services;
 
-use App\Models\Clinicas;
-use ArrayAccess;
-use Illuminate\Support\Facades\Http;
+
 use Exception;
 use Carbon\Carbon;
 use App\Models\Citas;
@@ -12,9 +10,6 @@ use App\Models\Servicio;
 use App\Models\Usuario;
 use App\Models\Personal;
 use App\Models\Pacientes;
-use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\Storage;
-use App\Models\Disponibilidad;
 use Google_Service_Calendar;
 use Google_Service_Calendar_Event;
 use Google_Client;
@@ -164,7 +159,7 @@ class GoogleService
     {
 
         $servicio=Servicio::find($cita->servicio_id);
-        $paciente=Pacientes::find($cita->paciente_id);
+        $paciente=Pacientes::find($cita?->paciente_id);
         $medico=Personal::find($cita->personal_id);
         $attendees = $usuarioCreador['attendees'];
 
@@ -175,9 +170,11 @@ class GoogleService
 
         $service = new Google_Service_Calendar($client);
 
+        $paciente_nombre= $paciente ? ($paciente->nombre . $paciente->apellido_paterno) : $cita->paciente_nombre;
+
         $event = new Google_Service_Calendar_Event([
             'summary' => $servicio->descripcion,
-            'description'=>"Cita con el paciente: $paciente->nombre $paciente->apellido_paterno, Medico: $medico->nombre $medico->apellido_paterno",
+            'description'=>"Cita con el paciente: $paciente_nombre, Medico: $medico->nombre $medico->apellido_paterno",
             'start' => ['dateTime' => $inicio->toRfc3339String(),
                 'timeZone' => 'America/Mexico_City'],
             'end' => ['dateTime' => $fin->toRfc3339String(),

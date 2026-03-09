@@ -7,6 +7,7 @@ use App\Models\Disponibilidad;
 use App\Services\NotificacionService;
 use App\Models\Expedientes;
 use App\Models\Servicio;
+use App\Models\Personal;
 use App\Services\PlanService;
 use App\Services\CitaService;
 use App\Services\UsuarioService;
@@ -75,17 +76,23 @@ class CitasController extends Controller
     {
         try {
 
-            // Obtener datos del usuario y clínica
-            $datos=$this->usuarioService->DatosUsuario($request->usuario_id);
 
             // Validación de los campos de entrada
             $validated = $request->validate([
                 'medico' => 'required|integer',
-                'paciente' => 'required|integer',
+                'tipocita_id' => 'required|integer',
+                'paciente' => 'nullable|integer',
+                'paciente_nombre' => 'nullable|string',
+                'telefono_paciente' => 'nullable|string',
                 'servicio' => 'required|integer',
                 'fecha' => 'required|date|after_or_equal:today',
                 'hora_inicio' => 'required|date_format:H:i'
             ]);
+
+
+            // Obtener datos del usuario y clínica
+            $personal=Personal::findOrFail($validated['medico']);
+            $datos=$this->usuarioService->DatosUsuario($request->usuario_id ?? $personal->getAttribute('usuario_id'));
 
             // Validar límite de citas según el plan
             if (!$this->planService->puedeCrearCita($datos['clinica_id'])) {
@@ -106,7 +113,7 @@ class CitasController extends Controller
 
             // Crear cita(s) simples o recurrentes
             $this->citaService->crearCitasRecurrentes($validated,$hora_inicio,
-                $hora_fin,$request->input('repetir'), $request->input('repeticiones'),$request->usuario_id);
+                $hora_fin,$request->input('repetir'), $request->input('repeticiones'),$datos['usuario_id']);
             
 
             return response()->json([
@@ -296,8 +303,8 @@ class CitasController extends Controller
         try{
             //validacion de entrada
             $validated=$request->validate([
-                'objetivo'=>'required|string',
-                'proceso'=>'required|string',
+                'objetivo'=>'nullable|string',
+                'proceso'=>'nullable|string',
                 'resultados'=>'required|string'
             ]);
 
@@ -313,8 +320,8 @@ class CitasController extends Controller
             //crear el expediente clinico
             Expedientes::create([
                 'cita_id'=>$cita_id,
-                'objetivo'=>$validated['objetivo'],
-                'proceso'=>$validated['proceso'],
+                // 'objetivo'=>$validated['objetivo'],
+                // 'proceso'=>$validated['proceso'],
                 'resultados'=>$validated['resultados'],
                 'fecha'=>now()->toDateString()
             ]);

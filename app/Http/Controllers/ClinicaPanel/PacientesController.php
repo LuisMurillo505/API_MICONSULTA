@@ -7,6 +7,7 @@ use App\Http\Requests\HistorialClinicoRequest;
 use App\Http\Requests\PacienteRequest;
 use Illuminate\Http\Request;
 use App\Models\Observaciones;
+use App\Models\Citas;
 use App\Models\ProgresoUsuarioGuia;
 use App\Models\ArchivosPaciente;
 use App\Services\PacienteService;
@@ -78,7 +79,7 @@ class PacientesController extends Controller
             }
 
             // Calcular edad
-            $edad = $this->pacienteService->calcularEdad($request->fecha_nacimiento ?? null);
+            // $edad = $this->pacienteService->calcularEdad($request->fecha_nacimiento ?? null);
 
             if ($request->hasFile('photo')) {
                 $foto = $this->pacienteService->guardarFoto($request->file('photo'), 
@@ -94,7 +95,6 @@ class PacientesController extends Controller
                 'alias' => $request->alias ?? null,
                 'fecha_nacimiento' => $request->fecha_nacimiento ?? null,
                 'sexo' => $request->sexo ?? null,
-                'edad' => $edad,
                 'curp'=>$request->curp ?? null,
                 'nss'=>$request->nss ?? null,
                 'status_id' => 1,
@@ -545,6 +545,33 @@ class PacientesController extends Controller
         
     }
     
+    public function AsignarCitaPaciente(Request $request){
+        try{
+            $validated=$request->validate([
+                'paciente'=>'required|integer',
+                'cita_id' =>'required|integer'
+            ]);
+            //buscar paciente
+            $paciente=Pacientes::FindOrFail($validated['paciente']);
+
+            $cita=Citas::findOrFail($validated['cita_id']);
+            $cita->update([
+                'paciente_id'=>$paciente->getAttribute('id')
+            ]);
+
+            return response()->json([
+                'success'=>true,
+            ]);
+
+
+        }catch(Exception $e){
+            return response()->json([
+                'success' => false,
+                'message' => 'Ocurrió un error',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
 
 
     

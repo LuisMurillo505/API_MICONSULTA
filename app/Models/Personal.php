@@ -10,6 +10,7 @@ class Personal extends Model
     
      protected $fillable = [
         'usuario_id',
+        'booking_slug',
         'nombre',
         'apellido_paterno',
         'apellido_materno',
@@ -42,6 +43,17 @@ class Personal extends Model
     public function puesto()
     {
         return $this->belongsTo(Puesto::class, 'puesto_id');
+    }
+
+    
+    protected $appends = ['booking_url']; 
+
+    // 2. El método se define en camelCases
+    protected function getBookingUrlAttribute(): String
+    {
+        $clinicaSlug = $this->usuario?->clinicas?->booking_slug ?? 'general';
+        $personalSlug = $this->booking_slug;
+        return  env('FRONTEND_URL') . "/calendariopaciente/".  $clinicaSlug . "/". $personalSlug;
     }
 
     

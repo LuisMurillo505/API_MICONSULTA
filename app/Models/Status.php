@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class Status extends Model
 {
+    public const ACTIVE = 1;
+    public const INACTIVE = 2;
     protected $table='status';
 
     protected $primaryKey = 'id';

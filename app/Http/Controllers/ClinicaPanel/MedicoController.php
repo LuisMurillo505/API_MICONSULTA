@@ -11,6 +11,8 @@ use App\Models\Servicio;
 use App\Services\UsuarioService;
 use App\Services\NotificacionService;
 use App\Services\PlanService;
+// use Illuminate\Support\Facades\Log;
+
 
 use Illuminate\Http\Request;
 
@@ -153,17 +155,20 @@ class MedicoController extends Controller
             $this->notificacionService->notificar_cita($datos['personal_id']);
 
             //Obtener lista de pacientes que tienen al menos una cita con este usuario:
-            $pacientes=Citas::with(['paciente'])
-            ->whereHas('personal.usuario',function($q) use($datos){
-                $q->where('id',$datos['usuario_id'])
-                ->where('clinica_id',$datos['clinica_id']);
-            })->select('paciente_id')   
-            ->distinct()
-            ->get()
-            ->pluck('paciente')
-            ->unique('id')
-            ->sortBy('nombre')
-            ->values();    
+            // $pacientes=Citas::with(['paciente'])
+            // ->whereHas('personal.usuario',function($q) use($datos){
+            //     $q->where('id',$datos['usuario_id'])
+            //     ->where('clinica_id',$datos['clinica_id']);
+            // })->select('paciente_id')   
+            // ->distinct()
+            // ->get()
+            // ->pluck('paciente')
+            // ->unique('id')
+            // ->sortBy('nombre')
+            // ->values();    
+
+            $pacientes=pacientes::where('clinica_id',$datos['clinica_id'])->get();
+
 
              /**
              * Consulta principal de citas del usuario.
@@ -172,7 +177,8 @@ class MedicoController extends Controller
             $query=Citas::query()->with(['paciente','servicio','personal.usuario','status'])
                 ->whereHas('personal.usuario',function($q) use($datos){
                     $q->where('id',$datos['usuario_id']);
-                })->orderBy('fecha_cita','desc')
+                })->orderBy('status_id','asc')
+                ->orderBy('fecha_cita','desc')
                 ->orderBy('hora_inicio','asc');
 
             //Lista que describe los filtros aplicados por el usuario,
@@ -259,6 +265,8 @@ class MedicoController extends Controller
                         'hora_fin' => $cita->hora_fin ?? null,
                         'paciente_id'=>$cita->paciente->id ?? null,
                         'nombre_paciente' => $cita->paciente->nombre ?? null,
+                        'nombre_cortoPaciente' =>explode(' ', trim($cita->paciente_nombre))[0],
+                        'nombre_pacientev2' =>$cita->paciente_nombre ?? null,
                         'alias'=>$cita->paciente->alias ?? null,
                         'apellidoP_paciente' => $cita->paciente->apellido_paterno ?? null,
                         'apellidoM_paciente' => $cita->paciente->apellido_materno ?? null,

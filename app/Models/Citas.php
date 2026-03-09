@@ -12,6 +12,8 @@ class Citas extends Model
      protected $fillable = [
         'personal_id',
         'paciente_id',
+        'paciente_nombre',
+        'telefono_paciente',
         'servicio_id',
         'fecha_cita',
         'hora_inicio',

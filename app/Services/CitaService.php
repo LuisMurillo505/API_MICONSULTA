@@ -2,20 +2,13 @@
 
 namespace App\Services;
 
-use App\Models\Clinicas;
-use ArrayAccess;
-use Illuminate\Support\Facades\Http;
 use Exception;
 use Carbon\Carbon;
 use App\Models\Citas;
 use App\Models\Servicio;
-use App\Models\Personal;
-use App\Models\Usuario;
-use App\Models\Pacientes;
-use Illuminate\Support\Facades\Mail;
 use App\Models\Disponibilidad;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
+// use Illuminate\Support\Facades\Log;
 
 
 class CitaService
@@ -162,9 +155,11 @@ class CitaService
 
                 // Crear cita
                 $cita = citas::create([
-                    'tipocita_id'=>1,
+                    'tipocita_id'=>$data['tipocita_id'] ?? 1,
                     'personal_id' => $data['medico'],
-                    'paciente_id' => $data['paciente'],
+                    'paciente_id' => $data['paciente'] ?? null,
+                    'paciente_nombre'=>$data['paciente_nombre'] ?? null,
+                    'telefono_paciente'=>$data['telefono_paciente'] ?? null,
                     'servicio_id' => $data['servicio'],
                     'fecha_cita'  => $fechaActual->toDateString(),
                     'hora_inicio' => $hora_inicio_actual->format('H:i'),

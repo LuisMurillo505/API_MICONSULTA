@@ -24,9 +24,16 @@ return Application::configure(basePath: dirname(__DIR__))
         }
     )
     ->withMiddleware(function (Middleware $middleware) {
+        $middleware->statefulApi(); 
         $middleware->alias([
             'api.key' => \App\Http\Middleware\ApiKeyMiddleware::class,
             'csrf' => \App\Http\Middleware\VerifyCsrfToken::class,
+            // 'api' => [
+            //     \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class, 
+            //     'throttle:api',
+            //     \Illuminate\Routing\Middleware\SubstituteBindings::class,
+            // ],
+            // 'api/*',
         ])->validateCsrfTokens(except: [
             'stripe/webhook', 
         ]);

@@ -16,7 +16,7 @@ use App\Models\Ciudades;
 use App\Services\PlanService;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\Log;
+// use Illuminate\Support\Facades\Log;
 
 
 /**
@@ -378,7 +378,7 @@ class AdminController extends Controller
             $Lista_paciente=Pacientes::where('clinica_id',$datos['clinica_id'])->get();
 
              // Actualizar la edad calculada de todos los pacientes de la clínica
-            $this->actualizarEdad($datos['clinica_id']);
+            // $this->actualizarEdad($datos['clinica_id']);
 
             // Query base: pacientes cuyo status pertenece a la clínica del usuario
             $query=Pacientes::query()->whereHas('status',function($q) use($datos){
@@ -470,20 +470,18 @@ class AdminController extends Controller
  *
  * @return void La función no retorna ningún valor explícito, realiza la acción de actualización directamente.
  */
-    public function actualizarEdad(int $clinica_id){
+    // public function actualizarEdad(int $clinica_id){
 
-        //Obtener todos los pacientes de la clínica especificada
-        $pacientes=Pacientes::where('clinica_id',$clinica_id)->get();
+    //     //Obtener todos los pacientes de la clínica especificada
+    //     $pacientes=Pacientes::where('clinica_id',$clinica_id)->get();
 
-        //Iterar sobre cada paciente para calcular y actualizar la edad
-        foreach($pacientes as $pac){
-            $edad=Carbon::Parse($pac->fecha_nacimiento)->age;
-            $pac->update([
-                'edad'=>$edad
-            ]);
-        }
+    //     //Iterar sobre cada paciente para calcular y actualizar la edad
+    //     foreach($pacientes as $pac){
+    //        $pac->edad = Carbon::parse($pac->fecha_nacimiento)->age;
+    //         $pac->save();
+    //     }
         
-    }
+    // }
 
 /**
  * Obtiene los datos necesarios para la vista o formulario de creación de un nuevo paciente.
@@ -719,7 +717,9 @@ class AdminController extends Controller
             $query=citas::query()->with(['personal','paciente','status'])
             ->whereHas('personal.usuario',function($q) use($datos){
                 $q->where('clinica_id',$datos['clinica_id']);
-            })->orderBy('fecha_cita','asc');  
+            })->orderBy('status_id','asc')  
+            ->orderBy('fecha_cita','desc')
+            ->orderBy('hora_inicio','asc');
 
             $filtrobusqueda=[];
 
@@ -851,7 +851,8 @@ class AdminController extends Controller
             $citas=Citas::with(['personal.usuario','paciente','servicio','status'])
                 ->wherehas('personal.usuario',function($q) use($datos){
                     $q->where('clinica_id',$datos['clinica_id']);
-                })
+                })->orderBy('fecha_cita', 'asc')
+                ->orderBy('hora_inicio', 'asc')
                 ->get()
                 ->map(function ($cita){
                     return[
@@ -862,6 +863,8 @@ class AdminController extends Controller
                         'hora_fin' => $cita->hora_fin ?? null,
                         'paciente_id'=>$cita->paciente->id ?? null,
                         'nombre_paciente' => $cita->paciente->nombre ?? null,
+                        'nombre_cortoPaciente' =>explode(' ', trim($cita->paciente_nombre ?? ''))[0],
+                        'nombre_pacientev2' =>$cita->paciente_nombre ?? null,
                         'alias'=>$cita->paciente->alias ?? null,
                         'apellidoP_paciente' => $cita->paciente->apellido_paterno ?? null,
                         'apellidoM_paciente' => $cita->paciente->apellido_materno ?? null,

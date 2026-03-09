@@ -101,6 +101,7 @@ class UsuariosController extends Controller
             // Crear registro de personal asociado
             $personal=Personal::create([
                 'nombre' => $request->nombre,
+                'booking_slug' => Str::slug($request->nombre) . '-' . Str::random(5),
                 'apellido_paterno' => $request->apellido_paterno,
                 'apellido_materno' => $request->apellido_materno,
                 'fecha_nacimiento' => $request->fecha_nacimiento,

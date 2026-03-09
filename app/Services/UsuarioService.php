@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Usuario;
 use Illuminate\Support\Facades\Http;
 use Exception;
+use Illuminate\Support\Str;
 use Carbon\Carbon;
 use App\Models\Personal;
 use App\Models\PasoGuia;
@@ -159,6 +160,7 @@ class UsuarioService
             // Crear clínica sin activar plan aún
             $clinica = Clinicas::create([
                 'nombre' => $data['clinica'],
+                'booking_slug' => Str::slug($data['clinica']) . '-' . Str::random(5),
                 'telefono' =>  $data['telefono'],
             ]);
 
@@ -234,6 +236,7 @@ class UsuarioService
            
             // Crear personal médico
             $personal=Personal::create([
+                'booking_slug' => Str::slug($request['nombre']) . '-' . Str::random(5),
                 'nombre' => $request['nombre'],
                 'apellido_paterno' => $request['apellido_paterno'],
                 'apellido_materno' => $request['apellido_materno'],

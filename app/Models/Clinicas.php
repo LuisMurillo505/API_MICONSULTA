@@ -4,13 +4,14 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Carbon\Carbon;
+// use Illuminate\Database\Eloquent\Casts\Attribute;
 
 class Clinicas extends Model
 {
     protected $table = 'clinicas';
     protected $fillable = [
         'nombre',
-        // 'direccion_id',
+        'booking_slug',
         'telefono',
         'RFC',
         'foto',
@@ -42,11 +43,19 @@ class Clinicas extends Model
         return $this->morphOne(Direcciones::class, 'direccionable');
     }
     public function guia(){
-        return $this->hasMany(Guia_configuracion::class,'clinica_id');
+        return $this->hasMany(Guia_Configuracion::class,'clinica_id');
     }
 
      public function servicio() {
         return $this->hasOne(Servicio::class,'clinica_id');
+    }
+
+    protected $appends = ['booking_url']; 
+
+    // 2. El método se define en camelCases
+    protected function getBookingUrlAttribute(): String
+    {
+        return  env('FRONTEND_URL') . "/calendariopaciente/" . $this->booking_slug;
     }
 
 }

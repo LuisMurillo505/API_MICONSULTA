@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 
 class Pacientes extends Model
 {
@@ -24,7 +25,6 @@ class Pacientes extends Model
         'nss',
         'paciente',
         'fecha_nacimiento',
-        'edad',
         'foto',
         'telefono',
     ];
@@ -59,7 +59,17 @@ class Pacientes extends Model
     }
 
     public function historial_clinico(){
-        return $this->hasOne(Historial_clinico::class,'paciente_id');
+        return $this->hasOne(historial_clinico::class,'paciente_id');
+    }
+
+    protected $appends = ['edad'];
+    public function getEdadAttribute()
+    {
+        if (!$this->fecha_nacimiento) {
+            return null; 
+        }
+
+        return Carbon::parse($this->fecha_nacimiento)->age;
     }
 
 }

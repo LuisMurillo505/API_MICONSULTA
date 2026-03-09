@@ -12,6 +12,8 @@ use App\Models\Ciudades;
 use App\Models\Personal;
 use App\Models\Planes;
 use Illuminate\Support\Facades\DB;
+// use Illuminate\Support\Facades\Log;
+
 
 class LoginController extends Controller
 {
@@ -127,8 +129,9 @@ class LoginController extends Controller
                 ], 404);
             }
 
-            //Eliminar sesiones anteriores (opcional si usas Sanctum)
+            //Eliminar sesiones anteriores
             DB::table('sessions')->where('user_id', $usuario->id)->delete();
+            DB::table('personal_access_tokens')->where('tokenable_id', $usuario->id)->delete();
 
             //Verificar suscripción
             $verificarSub = $this->suscripcionService->verificarSuscripcion($usuario);
@@ -161,16 +164,16 @@ class LoginController extends Controller
             $usuario->update(['last_connection' => now()]);
 
             // Generar token de acceso
-            // $token = $usuario->createToken('auth_token', [$rol])->plainTextToken;
+            $token = $usuario->createToken('auth_token', [$rol])->plainTextToken;
 
-            // ✅ Retornar respuesta JSON
+            //  Retornar respuesta JSON
             return response()->json([
                 'success' => true,
                 'message' => 'Inicio de sesión exitoso.',
                 'data' => [
                     'usuario' => $usuario,
                     'rol' => $rol,
-                    // 'token' => $token,
+                    'token' => $token,
                 ],
             ]);
 
@@ -191,5 +194,23 @@ class LoginController extends Controller
             ], 500);
         }
     }
+
+    public function me(Request $request)
+    {
+        // Log::info($request);
+        // Retorna el usuario autenticado (esto lo usará tu endpoint /auth/me)
+        return response()->json($request->user());
+    }
+
+    public function getToken(int $usuario_id)
+    {
+        $usuario=Usuario::findOrFail($usuario_id);
+        // $usuario->tokens()->where('name', 'inventario_token')->delete();
+
+        $token = $usuario->createToken('inventario_token', ['Personal Administrador'])->plainTextToken;  
+
+        return response()->json($token);
+    }
+
 
 }

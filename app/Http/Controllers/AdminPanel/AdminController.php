@@ -328,7 +328,7 @@ class AdminController extends Controller
             $totalFamiliares = $familiar->count();
 
             // Datos somatométricos del paciente
-            $somatometria=Somatometria_paciente::where('paciente_id',$paciente_id)->first();
+            $somatometria=Somatometria_Paciente::where('paciente_id',$paciente_id)->first();
 
             // Archivos clínicos del paciente
             $archivosPaciente = ArchivosPaciente::where('paciente_id', $paciente_id)->get();
@@ -497,6 +497,8 @@ class AdminController extends Controller
              //Recupera el expediente clínico correspondiente a la cita médica.
             $expediente=Expedientes::with('cita')->where('cita_id',$cita_id)->get();
 
+            $pacientes=Pacientes::where('status_id','=',1)
+            ->where('clinica_id',$cita->personal->usuario->clinica_id)->get();
                 
 
             //Retorna la respuesta en formato JSON con los datos recopilados.
@@ -507,6 +509,7 @@ class AdminController extends Controller
                 'familiar_paciente',
                 'observaciones',
                 'expediente', 
+                'pacientes'
             )]);
 
         }catch(\Throwable  $e){

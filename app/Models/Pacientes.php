@@ -59,7 +59,7 @@ class Pacientes extends Model
     }
 
     public function historial_clinico(){
-        return $this->hasOne(historial_clinico::class,'paciente_id');
+        return $this->hasOne(Historial_clinico::class,'paciente_id');
     }
 
     protected $appends = ['edad'];

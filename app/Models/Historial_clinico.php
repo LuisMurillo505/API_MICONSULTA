@@ -5,7 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class historial_clinico extends Model
+class Historial_clinico extends Model
 {
     protected $table='historial_clinico'; 
 

@@ -742,7 +742,6 @@ class AdminController extends Controller
             if ($request->filled('estado')) {
                 $query->where('status_id', $request->estado);
                 $filtrobusqueda[]="Estado: ".ucfirst($request->estado);
-
             }
 
             if ($request->filled('fecha')) {
@@ -844,17 +843,37 @@ class AdminController extends Controller
  * el array de citas formateadas ('citas') en caso de éxito,
  * o un mensaje de error con código 500 en caso de fallo.
  */ 
-    public function index_calendario(int $usuario_id){
+    public function index_calendario(Request $request,int $usuario_id){
         try{
             $datos=$this->usuarioService->DatosUsuario($usuario_id);
 
-            $citas=Citas::with(['personal.usuario','paciente','servicio','status'])
-                ->wherehas('personal.usuario',function($q) use($datos){
-                    $q->where('clinica_id',$datos['clinica_id']);
-                })->orderBy('fecha_cita', 'asc')
-                ->orderBy('hora_inicio', 'asc')
-                ->get()
-                ->map(function ($cita){
+            $personal_medico=Personal::whereHas('usuario',function($q) use($datos){
+                $q->where('clinica_id',$datos['clinica_id']);
+            })->where('puesto_id','!=',1)->get();
+
+            $pacientes=Pacientes::where('clinica_id',$datos['clinica_id'])
+            ->where('status_id',1)->get();
+
+            $query=Citas::with(['personal.usuario','paciente','servicio','status'])
+            ->wherehas('personal.usuario',function($q) use($datos){
+                $q->where('clinica_id',$datos['clinica_id']);
+            });
+                
+                if($request->filled('paciente')){
+                   $query->where('paciente_id', $request->paciente); 
+                }
+
+                if($request->filled('medico')){
+                   $query->where('personal_id', $request->medico);
+                }
+
+                if ($request->filled('estado')) {
+                    $query->where('status_id', $request->estado);
+                }
+
+                $citasRaw= $query->orderBy('fecha_cita', 'asc')
+                ->orderBy('hora_inicio', 'asc')->get();
+                $citas = $citasRaw->map(function ($cita){
                     return[
                         'id' => $cita->id,
                         'fecha_citaFormato'=>Carbon::parse($cita->fecha_cita ?? null)->locale('es')->isoFormat('D [de] MMMM [de] YYYY'),
@@ -875,13 +894,16 @@ class AdminController extends Controller
                         'status' => $cita->status->descripcion ?? null, 
                         'tipocita' => $cita->tipocita->id ?? null  
                     ];
-                });
+                });;
+
 
             //Retorna la respuesta en formato JSON con los datos recopilados.
             return response()->json([
                 'success'=>true,
                 'data'=>compact(
-                    'citas'
+                    'citas',
+                    'personal_medico',
+                    'pacientes'
                 )
             ]);
 

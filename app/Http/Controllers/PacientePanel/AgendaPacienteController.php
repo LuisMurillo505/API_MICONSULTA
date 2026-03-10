@@ -29,7 +29,10 @@ class AgendaPacienteController extends Controller
         try{
             
             $clinica=Clinicas::where('booking_slug', $bookingSlugClinica)->first();
+            $disponibilidad=null;
             if($bookingSlugMedico){
+                $personal=Personal::where('booking_slug',$bookingSlugMedico)->first();
+                $disponibilidad=$personal->disponibilidad;
                 $citas=Citas::with(['personal.usuario','paciente','servicio'])
                 ->whereHas('personal',function($query) use($bookingSlugMedico){
                     $query->where('booking_slug','=',$bookingSlugMedico);
@@ -97,6 +100,7 @@ class AgendaPacienteController extends Controller
                 'success'=>true,
                 'data'=>compact(
                     'citas',
+                    'disponibilidad',
                     'clinica'
                 )
             ]);

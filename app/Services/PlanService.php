@@ -151,7 +151,7 @@ class PlanService{
 
             $limite = $clinica->suscripcion->plan->funciones_planes->cantidad;
 
-            $conteoCitas=citas::whereHas('personal.usuario',function($q) use($clinica_id){
+            $conteoCitas=Citas::whereHas('personal.usuario',function($q) use($clinica_id){
                     $q->where('clinica_id',$clinica_id);
                 })->count();
 
@@ -236,6 +236,38 @@ public function puedeSubirArchivosPacientes($clinica_id,$paciente_id){
             throw $e;
         }
     }
+
+/**
+ * Verifica si una clínica tiene habilitada la integración con el inventario y punto de venta.
+ *
+ * Este método consulta la suscripción activa de la clínica y determina
+ * si el plan contratado incluye la función con `funcion_id = 7`, la cual
+ * representa el acceso a Inventario.
+ *
+ * @param  int  $clinica_id  ID de la clínica que se desea verificar.
+ * @return \App\Models\Clinicas|null
+ *     Retorna la instancia de la clínica con sus relaciones si tiene acceso a Google Calendar,
+ *     o `null` si no lo tiene habilitado.
+ *
+ * @throws \Throwable
+ *     Lanza una excepción si ocurre un error durante la consulta.
+ */
+    public function puedeUsarInventario($clinica_id){
+        try{    
+            $Inventario=Clinicas::with(['suscripcion.plan.funciones_planes' => function ($query) {
+                $query->where('funcion_id', 7);
+            }])->where('id',$clinica_id)
+            ->whereHas('suscripcion.plan.funciones_planes',function($q) {
+                $q->where('funcion_id',7);
+            })->first();
+
+            return $Inventario ?? null;
+
+        }catch(Exception $e){
+            throw $e;
+        }
+    }
+
 
 /**
  * Calcula cuántos usuarios adicionales puede registrar una clínica según su plan de suscripción.

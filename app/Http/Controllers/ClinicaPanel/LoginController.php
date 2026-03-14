@@ -78,10 +78,11 @@ class LoginController extends Controller
             // Obtener planes principales
             $Estandar=Planes::where('nombre','Estandar')->first();
             $Pro=Planes::where('nombre','Pro')->first();
+            $Elite=Planes::where('nombre','Elite')->first();
 
             return response()->json([
                 'success'=>true,
-                'data'=>compact('Estandar','Pro')
+                'data'=>compact('Estandar','Pro','Elite')
             ]);
 
         }catch(Exception $e){
@@ -198,8 +199,7 @@ class LoginController extends Controller
     public function me(Request $request)
     {
         // Log::info($request);
-        // Retorna el usuario autenticado (esto lo usará tu endpoint /auth/me)
-        return response()->json($request->user());
+        return response()->json($request->user()->load('clinicas'));
     }
 
     public function getToken(int $usuario_id)

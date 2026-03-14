@@ -150,6 +150,7 @@ class AdminController extends Controller
             $serviciosForm=Servicio::with('status')->where('clinica_id',$datos['clinica_id'])
             ->where('status_id',1)->get();
 
+            $Inventario=$this->planService->puedeUsarInventario($datos['clinica_id']);
 
             $adminMedico=false;
             if($datos['personal_id']){
@@ -167,7 +168,7 @@ class AdminController extends Controller
                     (array)$datos,
                     (array)$datosGuia,
                     (array)$conteoDatos,
-                    compact('adminMedico','especialidad','pacientesform','medicoForm','serviciosForm'))
+                    compact('adminMedico','especialidad','pacientesform','medicoForm','serviciosForm','Inventario'))
                     
             ]);   
         }catch(\Throwable $e){

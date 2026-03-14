@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Models\Inventario\Articulos;
+
 
 class Status extends Model
 {
@@ -36,6 +38,10 @@ class Status extends Model
 
      public function servicios(){
         return $this->hasMany(Servicio::class,'status_id');
+    } 
+
+    public function status(){
+        return $this->hasMany(Articulos::class,'status_id');
     } 
 
     

@@ -34,10 +34,9 @@ class KardexService{
     public function crearKardex(array $data,?int $venta_id=null){
         try{
             $kardex=Kardex::create([
+                'clinica_id'=>auth()->user()->clinicas->id,
                 'folio'     => $this->generarFolio($data['conceptomovimiento_id']),
                 'usuario_id'=> auth()->id(),
-                // 'receptor_id'=>$data['receptor_id'] ?? null,
-                // 'emisor_id'=>$data['emisor_id'] ?? null,
                 'fecha'=>  $data['fecha'],
                 'almacen_id'=>$data['almacen_id'] ?? null,
                 'venta_id'=>$venta_id,

@@ -25,7 +25,7 @@ class VentasController extends Controller
     public function index()
     {
         try{
-            $venta=Ventas::with('kardex','usuario','detalleVenta.articulos')
+            $venta=Ventas::with('kardex','usuario.personal','detalleVenta.articulos')
             ->orderBy('created_at','desc')
             ->get();
             return response()->json($venta);
@@ -56,15 +56,12 @@ class VentasController extends Controller
             //validacion del formulario
             $validated=$request->validate([
                 'cliente'=>'required|string',
-                'totalVenta_dis'=>'nullable|numeric',
-                'totalVenta_admin'=>'required|numeric',
+                'total_venta'=>'required|numeric',
                 'fecha'=>'required|date',
                 'detalles'=> 'required|array',
                 'detalles.*.articulo_id' => 'required|integer',
                 'detalles.*.almacenArticulo_id' => 'nullable|integer',
-                'detalles.*.articuloUsuario_id' => 'nullable|integer',
                 'detalles.*.precio_unitario' => 'required|numeric',
-                'detalles.*.precio_sugerido' => 'nullable|numeric',
                 'detalles.*.cantidad' => 'required|integer',
                 'detalles.*.subtotal' => 'required|numeric',
             ]);
@@ -76,19 +73,15 @@ class VentasController extends Controller
           
             //creamos la venta
             $venta = Ventas::create([
+                'clinica_id'=>auth()->user()->clinica_id,
                 'usuario_id' => auth()->id(),
                 'nombre_cliente' => $validated['cliente'],
-                'totalventa_admin' => $validated['totalVenta_admin'],
-                'totalventa_dis' => $validated['totalVenta_dis'] ?? 0,
+                'total_venta'=>$validated['total_venta'],
                 'fecha'=>$validated['fecha']
             ]);
 
             //creamos el detallle de la venta
             $venta->detalleVenta()->createMany($validated['detalles']);
-
-            //obtenemos el usuario logeado/el que hizo la venta
-            $user=auth()->user();
- 
             //generamos el kardex de la venta
             $this->kardexService->crearKardex($validated,$venta->getAttribute('id'));
 

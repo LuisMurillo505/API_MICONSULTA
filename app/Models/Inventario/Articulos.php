@@ -25,7 +25,6 @@ class Articulos extends Model
         'nombre',
         'costo',
         'precio',
-        'precio_sugerido',
         'fecha_caducidad'
     ];
 

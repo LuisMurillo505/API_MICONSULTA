@@ -87,10 +87,10 @@ class ArticulosController extends Controller
                 'marca_id'=>'required|integer',
                 'costo'=>'required|numeric',
                 'precio'=>'required|numeric',
-                'precio_sugerido'=>'required|numeric',
+                'fecha_caducidad'=>'required|date',
             ]);
 
-            $urlImage=null;
+            // $urlImage=null;
 
             if($request->hasFile('foto')){
                 $file = $request->file('foto');
@@ -104,12 +104,12 @@ class ArticulosController extends Controller
                 'clinica_id' => auth()->user()->getAttribute('clinica_id'),
                 'nombre' => $validated['nombre'],
                 'clave' => $validated['clave'],
-                'foto' => $urlImage,
+                // 'foto' => $urlImage,
                 'subcategoria_id'=>$validated['subcategoria_id'],
                 'marca_id'=>$validated['marca_id'],
                 'costo'=>$validated['costo'],
                 'precio'=>$validated['precio'],
-                'precio_sugerido'=>$validated['precio_sugerido'],
+                'fecha_caducidad'=>$validated['fecha_caducidad'],
                 'status_id'=>Status::ACTIVE,
             ]);
             return response()->json($articulo, 201);

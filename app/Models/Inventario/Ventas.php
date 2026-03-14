@@ -14,11 +14,11 @@ class Ventas extends Model
      * @var list<string>
      */
     protected $fillable=[
+        'clinica_id',
         'usuario_id',
         'nombre_cliente',
         'fecha',
-        'totalventa_dis',
-        'totalventa_admin',
+        'total_venta',
     ];
 
     public function usuario(){

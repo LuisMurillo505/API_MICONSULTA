@@ -19,7 +19,7 @@ class DetalleVenta extends Model
         'articulo_id',
         'cantidad',
         'precio_unitario',
-        'precio_sugerido',
+        // 'precio_sugerido',
         'subtotal'
     ];
 

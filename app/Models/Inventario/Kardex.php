@@ -15,6 +15,7 @@ class Kardex extends Model
      */
 
     protected $fillable=[
+        'clinica_id',
         'conceptomovimiento_id',
         'folio',
         'usuario_id',

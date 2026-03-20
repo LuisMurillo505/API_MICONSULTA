@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\ClinicaPanel;
 
 use App\Http\Controllers\Controller;
-use App\Models\Especialidad;
+// use App\Models\Especialidad;
 use App\Models\Personal;
 use App\Services\UsuarioService;
 use App\Services\PlanService;
@@ -160,37 +160,9 @@ class UsuariosController extends Controller
  */
     public function store_adminMedico(Request $request,int $usuario_id){
         try{
-    
-            // Obtener datos del usuario autenticado/admin para saber a qué clínica pertenece
-            $datos=$this->usuarioService->DatosUsuario($usuario_id);
- 
-            // Si viene "profesion", crear una nueva especialidad en la clínica
-            if($request->profesion){
-                $profesion=Especialidad::create([
-                    'clinica_id'=>$datos['clinica_id'],
-                    'descripcion'=>$request->profesion,
-                    'status_id'=> 1
-                ]);
-                $profesion=$profesion->id;
-            }else{
-                $profesion=$request->especialidad;
-            }
-           
-            // Crear el registro en la tabla personal (médico o admin médico)
-            $personal=Personal::create([
-                'nombre' => $request->nombre,
-                'apellido_paterno' => $request->apellido_paterno,
-                'apellido_materno' => $request->apellido_materno,
-                'fecha_nacimiento' => $request->fecha_nacimiento,
-                'especialidad_id' =>  $profesion ?? null,
-                'cedula_profesional' =>  null,
-                'telefono' => $datos['clinica']['telefono'],
-                'puesto_id' => 3,
-                'foto'=>null,
-                'usuario_id'=>$usuario_id,
-                'created_at'=>now(),
-                'updated_at'=>now()
-            ]);        
+       
+            $adminMedico=$this->usuarioService->store_AdminMedico($request->all(),$usuario_id);
+   
 
              // Retorna los datos en formato JSON
             return response()->json([

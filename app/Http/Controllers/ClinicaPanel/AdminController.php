@@ -12,6 +12,7 @@ use App\Models\Personal;
 use App\Models\Pacientes;
 use App\Models\Status;
 use App\Models\Citas;
+use App\Models\Receta;
 use App\Models\Ciudades;
 use App\Services\PlanService;
 use Illuminate\Http\Request;
@@ -714,6 +715,16 @@ class AdminController extends Controller
             })->where('puesto_id','!=',1)->get();
 
             $pacientes=pacientes::where('clinica_id',$datos['clinica_id'])->get();
+            // $pacientes = Citas::with('paciente')
+            // ->whereHas('personal.usuario', function($q) use ($datos) {
+            //     // Filtramos solo por la clínica, ignorando el usuario/médico específico
+            //     $q->where('clinica_id', $datos['clinica_id']);
+            // })
+            // ->get()
+            // ->pluck('paciente') // Extraemos los modelos de paciente
+            // ->unique('id')      // Eliminamos duplicados si un paciente tuvo varias citas
+            // ->sortBy('nombre')  // Ordenamos por nombre
+            // ->values();
             
             $query=citas::query()->with(['personal','paciente','status'])
             ->whereHas('personal.usuario',function($q) use($datos){
@@ -789,44 +800,44 @@ class AdminController extends Controller
  * (pacientes, personal, servicios) en caso de éxito,
  * o un mensaje de error con código 500 en caso de fallo.
  */
-    public function index_createcita($clinica_id){
+    // public function index_createcita($clinica_id){
 
-        try{
-            //Obtener todos los pacientes activos (status_id = 1) de la clínica específica.
-            $pacientes=Pacientes::where('status_id','=',1)
-            ->where('clinica_id',$clinica_id)->get();
+    //     try{
+    //         //Obtener todos los pacientes activos (status_id = 1) de la clínica específica.
+    //         $pacientes=Pacientes::where('status_id','=',1)
+    //         ->where('clinica_id',$clinica_id)->get();
             
-            // Obtener el personal que cumple con:
-            //    a) Está asignado a un usuario con clinica_id y status_id = 1.
-            //    b) Tiene un puesto_id = 2 (medico) o administrador.
-            $personal=Personal::whereHas('usuario',function($q) use($clinica_id){
-                $q->where('clinica_id',$clinica_id)
-                    ->where('status_id',1);
-            })->where('puesto_id','!=',1)->get();
+    //         // Obtener el personal que cumple con:
+    //         //    a) Está asignado a un usuario con clinica_id y status_id = 1.
+    //         //    b) Tiene un puesto_id = 2 (medico) o administrador.
+    //         $personal=Personal::whereHas('usuario',function($q) use($clinica_id){
+    //             $q->where('clinica_id',$clinica_id)
+    //                 ->where('status_id',1);
+    //         })->where('puesto_id','!=',1)->get();
 
-            //Obtener todos los servicios ofrecidos por la clínica específica.
-            $servicios=Servicio::where('clinica_id',$clinica_id)
-               ->where('status_id',1)->get();
+    //         //Obtener todos los servicios ofrecidos por la clínica específica.
+    //         $servicios=Servicio::where('clinica_id',$clinica_id)
+    //            ->where('status_id',1)->get();
 
-            //Retorna la respuesta en formato JSON con los datos recopilados.
-            return response()->json([
-                'success'=>true,
-                'data'=>compact(
-                    'pacientes',
-                    'personal',
-                    'servicios'
-                )
-            ]);
+    //         //Retorna la respuesta en formato JSON con los datos recopilados.
+    //         return response()->json([
+    //             'success'=>true,
+    //             'data'=>compact(
+    //                 'pacientes',
+    //                 'personal',
+    //                 'servicios'
+    //             )
+    //         ]);
 
-        }catch(\Throwable $e){
-            // Capturar cualquier error y retornar respuesta con detalles del error
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al obtener datos',
-                'error' => $e->getMessage(),
-            ], 500);
-        }
-    }
+    //     }catch(\Throwable $e){
+    //         // Capturar cualquier error y retornar respuesta con detalles del error
+    //         return response()->json([
+    //             'success' => false,
+    //             'message' => 'Error al obtener datos',
+    //             'error' => $e->getMessage(),
+    //         ], 500);
+    //     }
+    // }
 
     //  /**
     //  *  detalleCita se encuentra en adminController-adminPanel/DetalleCita
@@ -848,63 +859,53 @@ class AdminController extends Controller
         try{
             $datos=$this->usuarioService->DatosUsuario($usuario_id);
 
-            $personal_medico=Personal::whereHas('usuario',function($q) use($datos){
-                $q->where('clinica_id',$datos['clinica_id']);
-            })->where('puesto_id','!=',1)->get();
-
-            $pacientes=Pacientes::where('clinica_id',$datos['clinica_id'])
-            ->where('status_id',1)->get();
-
             $query=Citas::with(['personal.usuario','paciente','servicio','status'])
             ->wherehas('personal.usuario',function($q) use($datos){
                 $q->where('clinica_id',$datos['clinica_id']);
             });
                 
-                if($request->filled('paciente')){
-                   $query->where('paciente_id', $request->paciente); 
-                }
+            if($request->filled('paciente')){
+                $query->where('paciente_id', $request->paciente); 
+            }
 
-                if($request->filled('medico')){
-                   $query->where('personal_id', $request->medico);
-                }
+            if($request->filled('medico')){
+                $query->where('personal_id', $request->medico);
+            }
 
-                if ($request->filled('estado')) {
-                    $query->where('status_id', $request->estado);
-                }
+            if ($request->filled('estado')) {
+                $query->where('status_id', $request->estado);
+            }
 
-                $citasRaw= $query->orderBy('fecha_cita', 'asc')
-                ->orderBy('hora_inicio', 'asc')->get();
-                $citas = $citasRaw->map(function ($cita){
-                    return[
-                        'id' => $cita->id,
-                        'fecha_citaFormato'=>Carbon::parse($cita->fecha_cita ?? null)->locale('es')->isoFormat('D [de] MMMM [de] YYYY'),
-                        'fecha_cita' => $cita->fecha_cita ?? null,  
-                        'hora_inicio' => $cita->hora_inicio ?? null,
-                        'hora_fin' => $cita->hora_fin ?? null,
-                        'paciente_id'=>$cita->paciente->id ?? null,
-                        'nombre_paciente' => $cita->paciente->nombre ?? null,
-                        'nombre_cortoPaciente' =>explode(' ', trim($cita->paciente_nombre ?? ''))[0],
-                        'nombre_pacientev2' =>$cita->paciente_nombre ?? null,
-                        'alias'=>$cita->paciente->alias ?? null,
-                        'apellidoP_paciente' => $cita->paciente->apellido_paterno ?? null,
-                        'apellidoM_paciente' => $cita->paciente->apellido_materno ?? null,
-                        'nombre_medico' => $cita->personal->nombre ?? null,
-                        'apellidoP_medico' => $cita->personal->apellido_paterno ?? null,
-                        'apellidoM_medico' => $cita->personal->apellido_materno ?? null,
-                        'servicio' => $cita->servicio->descripcion ?? null,
-                        'status' => $cita->status->descripcion ?? null, 
-                        'tipocita' => $cita->tipocita->id ?? null  
-                    ];
-                });;
-
+            $citasRaw= $query->orderBy('fecha_cita', 'asc')
+            ->orderBy('hora_inicio', 'asc')->get();
+            $citas = $citasRaw->map(function ($cita){
+                return[
+                    'id' => $cita->id,
+                    'fecha_citaFormato'=>Carbon::parse($cita->fecha_cita ?? null)->locale('es')->isoFormat('D [de] MMMM [de] YYYY'),
+                    'fecha_cita' => $cita->fecha_cita ?? null,  
+                    'hora_inicio' => $cita->hora_inicio ?? null,
+                    'hora_fin' => $cita->hora_fin ?? null,
+                    'paciente_id'=>$cita->paciente->id ?? null,
+                    'nombre_paciente' => $cita->paciente->nombre ?? null,
+                    'nombre_cortoPaciente' =>explode(' ', trim($cita->paciente_nombre ?? ''))[0],
+                    'nombre_pacientev2' =>$cita->paciente_nombre ?? null,
+                    'alias'=>$cita->paciente->alias ?? null,
+                    'apellidoP_paciente' => $cita->paciente->apellido_paterno ?? null,
+                    'apellidoM_paciente' => $cita->paciente->apellido_materno ?? null,
+                    'nombre_medico' => $cita->personal->nombre ?? null,
+                    'apellidoP_medico' => $cita->personal->apellido_paterno ?? null,
+                    'apellidoM_medico' => $cita->personal->apellido_materno ?? null,
+                    'servicio' => $cita->servicio->descripcion ?? null,
+                    'status' => $cita->status->descripcion ?? null, 
+                    'tipocita' => $cita->tipocita->id ?? null  
+                ];
+            });
 
             //Retorna la respuesta en formato JSON con los datos recopilados.
             return response()->json([
                 'success'=>true,
                 'data'=>compact(
                     'citas',
-                    'personal_medico',
-                    'pacientes'
                 )
             ]);
 
@@ -917,7 +918,52 @@ class AdminController extends Controller
             ], 500);
         }
         
+    }
 
+    //recetas--------------------------------
+    public function index_recetas(Request $request){
+        try{
+            $datos=$this->usuarioService->DatosUsuario($request->usuario_id);
+            $query=Receta::whereHas('paciente', function($q) use($datos){
+                $q->where('clinica_id',$datos['clinica_id']);
+            })->with('paciente','personal');
+
+            $personal_medico=Personal::whereHas('usuario',function($q) use($datos){
+                $q->where('clinica_id',$datos['clinica_id']);
+            })->where('puesto_id','!=',1)->get();
+
+            $pacientes=Pacientes::where('clinica_id',$datos['clinica_id'])->get();
+
+            if($request->filled('paciente')){
+                   $query->where('paciente_id', $request->paciente); 
+            }
+
+            if($request->filled('medico')){
+                $query->where('personal_id', $request->medico);
+            }
+
+            if ($request->filled('fecha')) {
+                $query->where('fecha', $request->fecha);
+            }
+            $query->orderBy('fecha', 'desc') ;
+            $recetas= $query->get();
+        
+            return response()->json([
+                'success'=>true,
+                'data'=>compact(
+                    'recetas',
+                    'personal_medico',
+                    'pacientes'
+                )
+            ]);
+
+        }catch(\Throwable $e){
+             return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener datos',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
     }
 
 }

@@ -23,6 +23,7 @@ use App\Http\Controllers\ClinicaPanel\GuiaConfiguracionController;
 use App\Http\Controllers\ClinicaPanel\NotificacionController;
 use App\Http\Controllers\ClinicaPanel\LoginController;
 use App\Http\Controllers\ClinicaPanel\SuscripcionController;
+use App\Http\Controllers\ClinicaPanel\RecetaController;
 // use Illuminate\Foundation\Auth\EmailVerificationRequest;
 
 //login
@@ -127,6 +128,11 @@ Route::middleware('api.key')->post('/enviar-soporte', [NotificacionController::c
 
 //token
 Route::middleware('api.key')->get('/getToken/{usuario_id}', [LoginController::class, 'getToken']);
+
+//recetas admin
+Route::middleware('api.key')->post('/recetas', [RecetaController::class, 'store']);
+Route::middleware('api.key')->get('/recetas', [AdminController::class, 'index_recetas']);
+Route::middleware('api.key')->get('/recetas/{id}', [RecetaController::class, 'show']);
 
 
 //inventarios

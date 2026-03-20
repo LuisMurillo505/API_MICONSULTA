@@ -18,6 +18,7 @@ use App\Models\Funciones_planes;
 use App\Models\Funciones;
 use App\Models\Observaciones;
 use App\Models\Familiar_paciente;
+use App\Models\Receta;
 use App\Models\Somatometria_Paciente;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Http\Request;
@@ -499,6 +500,8 @@ class AdminController extends Controller
 
             $pacientes=Pacientes::where('status_id','=',1)
             ->where('clinica_id',$cita->personal->usuario->clinica_id)->get();
+
+            $receta = Receta::where('cita_id', $cita_id)->first();
                 
 
             //Retorna la respuesta en formato JSON con los datos recopilados.
@@ -509,7 +512,8 @@ class AdminController extends Controller
                 'familiar_paciente',
                 'observaciones',
                 'expediente', 
-                'pacientes'
+                'pacientes',
+                'receta'
             )]);
 
         }catch(\Throwable  $e){

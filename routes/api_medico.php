@@ -14,6 +14,8 @@ Route::middleware('api.key')->get('/notificacion-delete/{notificacion_id}', [Not
 Route::middleware('api.key')->get('/notificacion-updateAll/{usuarioId}', [NotificacionController::class, 'marcarTodas']);
 Route::middleware('api.key')->get('/notificacion-deleteAll/{usuarioId}', [NotificacionController::class, 'eliminarTodas']);
 //detallecita esta en admincontroller-adminPanel
+Route::middleware('api.key')->get('/recetas', [MedicoController::class, 'index_recetas']);
+
 
 
 

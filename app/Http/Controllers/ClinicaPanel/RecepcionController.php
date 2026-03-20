@@ -7,6 +7,9 @@ use Exception;
 use App\Services\UsuarioService;
 use App\Services\PlanService;
 use App\Models\Citas;
+use App\Models\Personal;
+use App\Models\Pacientes;
+use App\Models\Servicio;
 
 
 class RecepcionController extends Controller
@@ -50,17 +53,17 @@ class RecepcionController extends Controller
             })->count();
 
             //Citas activas (status_id = 1)
-            $conteoActivas = citas::whereHas('personal.usuario', function($q) use($datos) {
+            $conteoActivas = Citas::whereHas('personal.usuario', function($q) use($datos) {
                 $q->where('clinica_id', $datos['clinica_id']);
             })->where('status_id', 1)->count();
 
             //Citas finalizadas (status_id = 3)
-            $conteoFinalizadas = citas::whereHas('personal.usuario', function($q) use($datos) {
+            $conteoFinalizadas = Citas::whereHas('personal.usuario', function($q) use($datos) {
                 $q->where('clinica_id', $datos['clinica_id']);
             })->where('status_id', 3)->count();
 
             //Citas canceladas (status_id = 4)
-            $conteoCanceladas = citas::whereHas('personal.usuario', function($q) use($datos) {
+            $conteoCanceladas = Citas::whereHas('personal.usuario', function($q) use($datos) {
                 $q->where('clinica_id', $datos['clinica_id']);
             })->where('status_id', 4)->count();
 
@@ -101,6 +104,17 @@ class RecepcionController extends Controller
 
             //Obtener conteos relacionados a las citas del usuario:
             $conteoDatos=$this->conteoDatos($usuario_id);
+
+            $pacientesform=Pacientes::where('clinica_id',$datos['clinica_id'])
+            ->where('status_id',1)->get();
+
+            $medicoForm=Personal::whereHas('usuario',function($q) use($datos){
+                $q->where('clinica_id',$datos['clinica_id']);
+                $q->where('status_id',1);
+            })->where('puesto_id','!=',1)->get();
+
+            $serviciosForm=Servicio::with('status')->where('clinica_id',$datos['clinica_id'])
+            ->where('status_id',1)->get();
             
 
             //Retorna la respuesta en formato JSON con los datos recopilados.
@@ -109,7 +123,8 @@ class RecepcionController extends Controller
                 'data'=>array_merge(
                     $datos,
                     $datosGuia,
-                    $conteoDatos
+                    $conteoDatos,
+                    compact('pacientesform','medicoForm','serviciosForm')
                 )
             ]);
         }catch(\Throwable $e){

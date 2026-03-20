@@ -16,9 +16,9 @@ class CleanSpecificTables extends Command
     public function handle()
     {
         // Define aquí los nombres de las tablas que quieres eliminar
-        $tablasABorrar = ['personal_access_tokens','categorias', 'subcategorias', 'almacenes','marcas','articulos','tipo_movimientos',
-                          'concepto_movimientos','ventas','kardexes','movimientos_inventario','detalle_ventas',
-                          'almacen_articulos'];
+        $tablasABorrar = ['personal_access_tokens','recetas','recetas_detalle','categorias', 'subcategorias', 
+                          'almacenes','marcas','articulos','tipo_movimientos','concepto_movimientos',
+                          'ventas','kardexes','movimientos_inventario','detalle_ventas','almacen_articulos'];
 
         if ($this->confirm("¿Estás seguro de que quieres borrar estas tablas: " . implode(', ', $tablasABorrar) . "?")) {
             

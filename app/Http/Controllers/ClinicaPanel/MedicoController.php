@@ -8,6 +8,7 @@ use App\Models\Citas;
 use App\Models\Pacientes;
 use App\Models\Personal;
 use App\Models\Servicio;
+use App\Models\Receta;
 use App\Services\UsuarioService;
 use App\Services\NotificacionService;
 use App\Services\PlanService;
@@ -101,13 +102,16 @@ class MedicoController extends Controller
             // Obtener la información relacionada a la guía de usuario:
             $datosGuia = $this->usuarioService->obtenerDatosGuia($usuario_id);
 
-            $pacientesform=Pacientes::where('clinica_id',$datos['clinica_id'])->get();
+            $pacientesform=Pacientes::where('clinica_id',$datos['clinica_id'])
+            ->where('status_id',1)->get();  
 
-            $medicoForm=Personal::whereHas('usuario',function($q) use($datos){
-                $q->where('clinica_id',$datos['clinica_id']);
-            })->where('puesto_id','!=',1)->get();
+            // $medicoForm=Personal::whereHas('usuario',function($q) use($datos){
+            //     $q->where('clinica_id',$datos['clinica_id']);
+            //     $q->where('status_id',1);
+            // })->where('puesto_id','!=',1)->get();
 
-            $serviciosForm=Servicio::with('status')->where('clinica_id',$datos['clinica_id'])->get();
+            $serviciosForm=Servicio::with('status')->where('clinica_id',$datos['clinica_id'])
+            ->where('status_id',1)->get();
 
             //Retorna la respuesta en formato JSON con los datos recopilados.
             return response()->json([
@@ -116,7 +120,7 @@ class MedicoController extends Controller
                     $datos,
                     $datosGuia,
                     $conteoDatos,
-                    compact('pacientesform','medicoForm','serviciosForm')
+                    compact('pacientesform','serviciosForm')
                 )
             ]);
         }catch(\Throwable $e){
@@ -165,7 +169,7 @@ class MedicoController extends Controller
             // ->pluck('paciente')
             // ->unique('id')
             // ->sortBy('nombre')
-            // ->values();    
+            // ->values();      
 
             $pacientes=pacientes::where('clinica_id',$datos['clinica_id'])->get();
 
@@ -243,41 +247,52 @@ class MedicoController extends Controller
  * @param int $usuario_id  ID del usuario autenticado.
  * @return \Illuminate\Http\JsonResponse
  */
-    public function index_calendario(int $usuario_id){
+    public function index_calendario(Request $request,int $usuario_id){
 
         try{
             // Obtener datos del usuario, incluyendo usuario_id y clinica_id
             $datos=$this->usuarioService->DatosUsuario($usuario_id);
 
             //Obtiene todas las citas relacionadas al usuario que pertenece a una clínica.
-            $citas=Citas::with(['personal.usuario','paciente','servicio'])
+            $query=Citas::with(['personal.usuario','paciente','servicio'])
                 ->whereHas('personal.usuario',function($query) use($datos){
                     $query->where('id','=',$datos['usuario_id'])
                     ->where('clinica_id',$datos['clinica_id']);
-                })->get()
-                // Transformar cada cita en un arreglo formateado
-                ->map(function ($cita){
-                    return[
-                        'id' => $cita->id,
-                        'fecha_citaFormato'=>Carbon::parse($cita->fecha_cita ?? null)->locale('es')->isoFormat('D [de] MMMM [de] YYYY'),
-                        'fecha_cita' => $cita->fecha_cita ?? null,  
-                        'hora_inicio' => $cita->hora_inicio ?? null,
-                        'hora_fin' => $cita->hora_fin ?? null,
-                        'paciente_id'=>$cita->paciente->id ?? null,
-                        'nombre_paciente' => $cita->paciente->nombre ?? null,
-                        'nombre_cortoPaciente' =>explode(' ', trim($cita->paciente_nombre))[0],
-                        'nombre_pacientev2' =>$cita->paciente_nombre ?? null,
-                        'alias'=>$cita->paciente->alias ?? null,
-                        'apellidoP_paciente' => $cita->paciente->apellido_paterno ?? null,
-                        'apellidoM_paciente' => $cita->paciente->apellido_materno ?? null,
-                        'nombre_medico' => $cita->personal->nombre ?? null,
-                        'apellidoP_medico' => $cita->personal->apellido_paterno ?? null,
-                        'apellidoM_medico' => $cita->personal->apellido_materno ?? null,
-                        'servicio' => $cita->servicio->descripcion ?? null,
-                        'status' => $cita->status->descripcion ?? null, 
-                        'tipocita' => $cita->tipocita->id ?? null  
-                    ];
                 });
+
+            if($request->filled('paciente')){
+                $query->where('paciente_id', $request->paciente); 
+            }
+
+            if ($request->filled('estado')) {
+                $query->where('status_id', $request->estado);
+            }
+
+            $citasRaw= $query->orderBy('fecha_cita', 'asc')
+            ->orderBy('hora_inicio', 'asc')->get();
+            // Transformar cada cita en un arreglo formateado
+            $citas =$citasRaw->map(function ($cita){
+                return[
+                    'id' => $cita->id,
+                    'fecha_citaFormato'=>Carbon::parse($cita->fecha_cita ?? null)->locale('es')->isoFormat('D [de] MMMM [de] YYYY'),
+                    'fecha_cita' => $cita->fecha_cita ?? null,  
+                    'hora_inicio' => $cita->hora_inicio ?? null,
+                    'hora_fin' => $cita->hora_fin ?? null,
+                    'paciente_id'=>$cita->paciente->id ?? null,
+                    'nombre_paciente' => $cita->paciente->nombre ?? null,
+                    'nombre_cortoPaciente' =>explode(' ', trim($cita->paciente_nombre))[0],
+                    'nombre_pacientev2' =>$cita->paciente_nombre ?? null,
+                    'alias'=>$cita->paciente->alias ?? null,
+                    'apellidoP_paciente' => $cita->paciente->apellido_paterno ?? null,
+                    'apellidoM_paciente' => $cita->paciente->apellido_materno ?? null,
+                    'nombre_medico' => $cita->personal->nombre ?? null,
+                    'apellidoP_medico' => $cita->personal->apellido_paterno ?? null,
+                    'apellidoM_medico' => $cita->personal->apellido_materno ?? null,
+                    'servicio' => $cita->servicio->descripcion ?? null,
+                    'status' => $cita->status->descripcion ?? null, 
+                    'tipocita' => $cita->tipocita->id ?? null  
+                ];
+            });
 
             //Retornar los datos en formato JSON con estado de éxito.
             return response()->json([
@@ -301,6 +316,48 @@ class MedicoController extends Controller
     //perfilmedico se encuentra en adminController-adminPanel/DetalleUsuario
 
     //detallecita se encuentra en adminController-adminPanel/DetalleCita
+
+    //recetas--------------------------------------------------------------
+     public function index_recetas(Request $request){
+        try{
+            $datos=$this->usuarioService->DatosUsuario($request->usuario_id);
+            $query=Receta::whereHas('personal', function($q) use($datos){
+                $q->where('usuario_id',$datos['usuario_id']);
+            })->with('paciente','personal');
+
+            $personal_medico=Personal::whereHas('usuario',function($q) use($datos){
+                $q->where('clinica_id',$datos['clinica_id']);
+            })->where('puesto_id','!=',1)->get();
+
+            $pacientes=Pacientes::where('clinica_id',$datos['clinica_id'])->get();
+
+            if($request->filled('paciente')){
+                $query->where('paciente_id', $request->paciente); 
+            }
+
+            if ($request->filled('fecha')) {
+                $query->where('fecha', $request->fecha);
+            }
+            $query->orderBy('fecha', 'desc') ;
+            $recetas= $query->get();
+        
+            return response()->json([
+                'success'=>true,
+                'data'=>compact(
+                    'recetas',
+                    'personal_medico',
+                    'pacientes'
+                )
+            ]);
+
+        }catch(\Throwable $e){
+             return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener datos',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
 
 
 }

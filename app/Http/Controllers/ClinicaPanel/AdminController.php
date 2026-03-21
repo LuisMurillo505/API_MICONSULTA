@@ -145,7 +145,7 @@ class AdminController extends Controller
 
             $medicoForm=Personal::whereHas('usuario',function($q) use($datos){
                 $q->where('clinica_id',$datos['clinica_id']);
-                $q->where('status_id',1);
+                // $q->where('status_id',1);
             })->where('puesto_id','!=',1)->get();
 
             $serviciosForm=Servicio::with('status')->where('clinica_id',$datos['clinica_id'])

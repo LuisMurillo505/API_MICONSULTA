@@ -305,7 +305,7 @@ class CitasController extends Controller
             $validated=$request->validate([
                 'objetivo'=>'nullable|string',
                 'proceso'=>'nullable|string',
-                'resultados'=>'required|string'
+                'resultados'=>'nullable|string'
             ]);
 
             // Buscar y actualizar la cita a finalizada
@@ -321,7 +321,7 @@ class CitasController extends Controller
             Expedientes::create([
                 'cita_id'=>$cita_id,
                 // 'objetivo'=>$validated['objetivo'],
-                // 'proceso'=>$validated['proceso'],
+                'proceso'=>$validated['proceso'],
                 'resultados'=>$validated['resultados'],
                 'fecha'=>now()->toDateString()
             ]);
